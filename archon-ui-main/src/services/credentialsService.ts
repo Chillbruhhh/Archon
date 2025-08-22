@@ -150,18 +150,15 @@ class CredentialsService {
       USE_HYBRID_SEARCH: true,
       USE_AGENTIC_RAG: true,
       USE_RERANKING: true,
-<<<<<<< HEAD
       MODEL_CHOICE: 'gpt-4.1-nano',
       LLM_PROVIDER: 'openai',
       LLM_BASE_URL: '',
       EMBEDDING_PROVIDER: 'openai',
       EMBEDDING_MODEL: '',
-=======
       MODEL_CHOICE: "gpt-4.1-nano",
       LLM_PROVIDER: "openai",
       LLM_BASE_URL: "",
       EMBEDDING_MODEL: "",
->>>>>>> upstream/main
       // Crawling Performance Settings defaults
       CRAWL_BATCH_SIZE: 50,
       CRAWL_MAX_CONCURRENT: 10,
