@@ -54,7 +54,7 @@ export const RAGSettings = ({
           knowledge retrieval.
         </p>
         
-        {/* Provider Selection Row */}
+        {/* Row 1: Provider Selection and Save Button */}
         <div className="grid grid-cols-3 gap-4 mb-4">
           <div>
             <Select
@@ -73,20 +73,24 @@ export const RAGSettings = ({
               ]}
             />
           </div>
-          {ragSettings.LLM_PROVIDER === 'ollama' && (
-            <div>
-              <Input
-                label="Ollama Base URL"
-                value={ragSettings.LLM_BASE_URL || 'http://localhost:11434/v1'}
-                onChange={e => setRagSettings({
-                  ...ragSettings,
-                  LLM_BASE_URL: e.target.value
-                })}
-                placeholder="http://localhost:11434/v1"
-                accentColor="green"
-              />
-            </div>
-          )}
+          <div>
+            <Select
+              label="Embedding Provider"
+              value={ragSettings.EMBEDDING_PROVIDER || 'openai'}
+              onChange={e => setRagSettings({
+                ...ragSettings,
+                EMBEDDING_PROVIDER: e.target.value,
+                // Reset embedding model when provider changes
+                EMBEDDING_MODEL: ''
+              })}
+              accentColor="green"
+              options={[
+                { value: 'openai', label: 'OpenAI' },
+                { value: 'ollama', label: 'Ollama' },
+                { value: 'google', label: 'Google' },
+              ]}
+            />
+          </div>
           <div className="flex items-end">
             <Button 
               variant="outline" 
@@ -113,9 +117,9 @@ export const RAGSettings = ({
           </div>
         </div>
 
-        {/* Model Settings Row */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="space-y-4">
+        {/* Row 2: Model Settings */}
+        <div className="grid grid-cols-2 gap-4 mb-2">
+          <div>
             <Input
               label="Agent Model"
               value={ragSettings.MODEL_CHOICE}
@@ -126,39 +130,8 @@ export const RAGSettings = ({
               placeholder={getModelPlaceholder(ragSettings.LLM_PROVIDER || 'openai')}
               accentColor="green"
             />
-
-            {/* Use Contextual Embeddings */}
-            <div className="bg-transparent border border-green-500/20 rounded-lg p-4 shadow-[0_2px_8px_rgba(34,197,94,0.1)]">
-              <CustomCheckbox
-                id="contextualEmbeddings"
-                checked={ragSettings.USE_CONTEXTUAL_EMBEDDINGS}
-                onChange={e => setRagSettings({
-                  ...ragSettings,
-                  USE_CONTEXTUAL_EMBEDDINGS: e.target.checked
-                })}
-                label="Use Contextual Embeddings"
-                description="Enhances embeddings with contextual information for better retrieval"
-              />
-            </div>
           </div>
-
-          <div className="space-y-2">
-            <Select
-              label="Embedding Provider"
-              value={ragSettings.EMBEDDING_PROVIDER || 'openai'}
-              onChange={e => setRagSettings({
-                ...ragSettings,
-                EMBEDDING_PROVIDER: e.target.value,
-                // Reset embedding model when provider changes
-                EMBEDDING_MODEL: ''
-              })}
-              accentColor="green"
-              options={[
-                { value: 'openai', label: 'OpenAI' },
-                { value: 'ollama', label: 'Ollama' },
-                { value: 'google', label: 'Google' },
-              ]}
-            />
+          <div>
             <Input
               label="Embedding Model"
               value={ragSettings.EMBEDDING_MODEL || ''}
@@ -169,9 +142,109 @@ export const RAGSettings = ({
               placeholder={getEmbeddingPlaceholder(ragSettings.EMBEDDING_PROVIDER || 'openai')}
               accentColor="green"
             />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Separate from agent provider. OpenRouter doesn't offer embedding models.
-            </p>
+          </div>
+        </div>
+
+        {/* Embedding explanation text */}
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+          Separate from agent provider. OpenRouter doesn't offer embedding models.
+        </p>
+
+        {/* Ollama Base URL (if needed) */}
+        {ragSettings.LLM_PROVIDER === 'ollama' && (
+          <div className="mb-4">
+            <Input
+              label="Ollama Base URL"
+              value={ragSettings.LLM_BASE_URL || 'http://localhost:11434/v1'}
+              onChange={e => setRagSettings({
+                ...ragSettings,
+                LLM_BASE_URL: e.target.value
+              })}
+              placeholder="http://localhost:11434/v1"
+              accentColor="green"
+            />
+          </div>
+        )}
+
+        {/* Row 3: Contextual Embeddings with inline controls */}
+        <div className="bg-transparent border border-green-500/20 rounded-lg p-4 shadow-[0_2px_8px_rgba(34,197,94,0.1)] mb-4">
+          <div className="flex items-start justify-between">
+            <CustomCheckbox
+              id="contextualEmbeddings"
+              checked={ragSettings.USE_CONTEXTUAL_EMBEDDINGS}
+              onChange={e => setRagSettings({
+                ...ragSettings,
+                USE_CONTEXTUAL_EMBEDDINGS: e.target.checked
+              })}
+              label="Use Contextual Embeddings"
+              description="Enhances embeddings with contextual information for better retrieval"
+            />
+            
+            {ragSettings.USE_CONTEXTUAL_EMBEDDINGS && (
+              <div className="flex items-center gap-4">
+                <div className="flex flex-col items-center">
+                  <div className="relative ml-2 mr-6">
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={ragSettings.CONTEXTUAL_EMBEDDINGS_MAX_WORKERS || 3}
+                      onChange={e => setRagSettings({
+                        ...ragSettings,
+                        CONTEXTUAL_EMBEDDINGS_MAX_WORKERS: parseInt(e.target.value, 10) || 3
+                      })}
+                      className="w-14 h-10 pl-1 pr-7 text-center font-medium rounded-md 
+                      bg-gradient-to-b from-gray-100 to-gray-200 dark:from-gray-900 dark:to-black 
+                      border border-green-500/30 
+                      text-gray-900 dark:text-white
+                      focus:border-green-500 focus:shadow-[0_0_15px_rgba(34,197,94,0.4)]
+                      transition-all duration-200
+                      [appearance:textfield] 
+                      [&::-webkit-outer-spin-button]:appearance-none 
+                      [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <div className="absolute right-1 top-1 bottom-1 flex flex-col">
+                      <button
+                        type="button"
+                        onClick={() => setRagSettings({
+                          ...ragSettings,
+                          CONTEXTUAL_EMBEDDINGS_MAX_WORKERS: Math.min((ragSettings.CONTEXTUAL_EMBEDDINGS_MAX_WORKERS || 3) + 1, 10)
+                        })}
+                        className="flex-1 px-1 rounded-t-sm 
+                        bg-gradient-to-b from-green-500/20 to-green-600/10
+                        hover:from-green-500/30 hover:to-green-600/20
+                        border border-green-500/30 border-b-0
+                        hover:shadow-[0_0_8px_rgba(34,197,94,0.6)]
+                        transition-all duration-200
+                        flex items-center justify-center"
+                      >
+                        <ChevronUp size={12} className="text-green-500" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRagSettings({
+                          ...ragSettings,
+                          CONTEXTUAL_EMBEDDINGS_MAX_WORKERS: Math.max((ragSettings.CONTEXTUAL_EMBEDDINGS_MAX_WORKERS || 3) - 1, 1)
+                        })}
+                        className="flex-1 px-1 rounded-b-sm
+                        bg-gradient-to-b from-green-500/20 to-green-600/10
+                        hover:from-green-500/30 hover:to-green-600/20
+                        border border-green-500/30 border-t-0
+                        hover:shadow-[0_0_8px_rgba(34,197,94,0.6)]
+                        transition-all duration-200
+                        flex items-center justify-center"
+                      >
+                        <ChevronDown size={12} className="text-green-500" />
+                      </button>
+                    </div>
+                  </div>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">Max</span>
+                </div>
+                <div className="text-xs text-blue-500 dark:text-blue-400 max-w-[200px]">
+                  Controls parallel processing for embeddings (1-10)
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
