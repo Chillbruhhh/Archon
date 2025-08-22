@@ -43,7 +43,8 @@ This new vision for Archon replaces the old one (the agenteer). Archon used to b
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - [Supabase](https://supabase.com/) account (free tier or local Supabase both work)
-- LLM provider API key: [OpenAI](https://platform.openai.com/api-keys), [OpenRouter](https://openrouter.ai/), Google, or Ollama
+- LLM/Embeddings API keys: Choose an LLM provider ([OpenAI](https://platform.openai.com/api-keys), [OpenRouter](https://openrouter.ai/), Google, or Ollama).
+- Note: OpenRouter does not offer embeddings—if you select OpenRouter for chat, also add an embeddings provider/key (e.g., OpenAI or Google Gemini).
 
 ### Setup Instructions
 
