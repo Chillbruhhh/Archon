@@ -144,20 +144,23 @@ class DocumentStorageService(BaseStorageService):
                     logger.warning(f"Failed to get active embedding provider for file upload, falling back to OpenAI: {e}")
                     active_embedding_provider = "openai"
 
-                source_summary = await self.threading_service.run_cpu_intensive(
-                    extract_source_summary, source_id, file_content[:5000], 500, active_provider
+                source_summary = await extract_source_summary(
+                    source_id,
+                    file_content[:5000],
+                    500,
+                    active_provider
                 )
 
                 logger.info(f"Updating source info for {source_id} with knowledge_type={knowledge_type}")
-                await self.threading_service.run_io_bound(
-                    update_source_info,
-                    self.supabase_client,
-                    source_id,
-                    source_summary,
-                    total_word_count,
-                    file_content[:1000],  # content for title generation
-                    knowledge_type,      # FIX: Pass knowledge_type parameter!
-                    tags,               # FIX: Pass tags parameter!
+                await update_source_info(
+                    client=self.supabase_client,
+                    source_id=source_id,
+                    summary=source_summary,
+                    word_count=total_word_count,
+                    title_input=file_content[:1000],
+                    knowledge_type=knowledge_type,
+                    tags=tags,
+                    provider=active_provider
                 )
 
                 await report_progress("Storing document chunks...", 70)

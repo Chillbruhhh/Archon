@@ -10,6 +10,7 @@ Consolidates both utility functions and class-based service.
 import os
 import asyncio
 import random
+from datetime import datetime, timezone
 
 from typing import Any
 
@@ -291,7 +292,7 @@ async def update_source_info(
                     "summary": summary,
                     "total_word_count": word_count,
                     "metadata": metadata,
-                    "updated_at": "now()",
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
                 })
                 .eq("source_id", source_id)
                 .execute()

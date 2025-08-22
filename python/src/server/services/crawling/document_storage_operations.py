@@ -251,7 +251,8 @@ class DocumentStorageOperations:
                     knowledge_type=request.get('knowledge_type', 'technical'),
                     tags=request.get('tags', []),
                     update_frequency=0,  # Set to 0 since we're using manual refresh
-                    original_url=request.get('url')  # Store the original crawl URL
+                    original_url=request.get('url'),  # Store the original crawl URL
+                    provider=active_provider,
                 )
                 safe_logfire_info(f"Successfully created/updated source record for '{source_id}'")
             except Exception as e:
