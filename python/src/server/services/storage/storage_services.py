@@ -125,9 +125,27 @@ class DocumentStorageService(BaseStorageService):
 
                 # Update source information
                 from ...utils import extract_source_summary, update_source_info
+                from ..credential_service import credential_service
+
+                # Get the active LLM provider for summary generation
+                try:
+                    provider_config = await credential_service.get_active_provider("llm")
+                    active_provider = provider_config.get("provider", "openai")
+                except Exception as e:
+                    logger.warning(f"Failed to get active provider for file upload, falling back to OpenAI: {e}")
+                    active_provider = "openai"
+
+                # Get the active embedding provider for document embeddings
+                try:
+                    embedding_provider_config = await credential_service.get_active_provider("embedding")
+                    active_embedding_provider = embedding_provider_config.get("provider", "openai")
+                    logger.info(f"Using embedding provider '{active_embedding_provider}' for file upload embeddings")
+                except Exception as e:
+                    logger.warning(f"Failed to get active embedding provider for file upload, falling back to OpenAI: {e}")
+                    active_embedding_provider = "openai"
 
                 source_summary = await self.threading_service.run_cpu_intensive(
-                    extract_source_summary, source_id, file_content[:5000]
+                    extract_source_summary, source_id, file_content[:5000], 500, active_provider
                 )
 
                 logger.info(f"Updating source info for {source_id} with knowledge_type={knowledge_type}")
@@ -155,7 +173,7 @@ class DocumentStorageService(BaseStorageService):
                     batch_size=15,
                     progress_callback=progress_callback,
                     enable_parallel_batches=True,
-                    provider=None,  # Use configured provider
+                    provider=active_embedding_provider,  # Use configured embedding provider
                     cancellation_check=cancellation_check,
                 )
 

@@ -155,10 +155,6 @@ class CredentialsService {
       LLM_BASE_URL: '',
       EMBEDDING_PROVIDER: 'openai',
       EMBEDDING_MODEL: '',
-      MODEL_CHOICE: "gpt-4.1-nano",
-      LLM_PROVIDER: "openai",
-      LLM_BASE_URL: "",
-      EMBEDDING_MODEL: "",
       // Crawling Performance Settings defaults
       CRAWL_BATCH_SIZE: 50,
       CRAWL_MAX_CONCURRENT: 10,
@@ -186,6 +182,7 @@ class CredentialsService {
             "MODEL_CHOICE",
             "LLM_PROVIDER",
             "LLM_BASE_URL",
+            "EMBEDDING_PROVIDER",
             "EMBEDDING_MODEL",
             "CRAWL_WAIT_STRATEGY",
           ].includes(cred.key)

@@ -16,6 +16,7 @@ from ..storage.code_storage_service import (
     add_code_examples_to_supabase
 )
 from ..source_management_service import update_source_info, extract_source_summary
+from ..credential_service import credential_service
 from .code_extraction_service import CodeExtractionService
 
 
@@ -60,6 +61,15 @@ class DocumentStorageOperations:
         """
         # Initialize storage service for chunking
         storage_service = DocumentStorageService(self.supabase_client)
+        
+        # Get the active embedding provider for document embedding generation
+        try:
+            embedding_provider_config = await credential_service.get_active_provider("embedding")
+            active_embedding_provider = embedding_provider_config.get("provider", "openai")
+            safe_logfire_info(f"Using embedding provider '{active_embedding_provider}' for document embeddings")
+        except Exception as e:
+            safe_logfire_error(f"Failed to get active embedding provider, falling back to OpenAI: {e}")
+            active_embedding_provider = "openai"
         
         # Prepare data for chunked storage
         all_urls = []
@@ -150,7 +160,7 @@ class DocumentStorageOperations:
             batch_size=25,  # Increased from 10 for better performance
             progress_callback=progress_callback,  # Pass the callback for progress updates
             enable_parallel_batches=True,  # Enable parallel processing
-            provider=None,  # Use configured provider
+            provider=active_embedding_provider,  # Use configured embedding provider
             cancellation_check=cancellation_check  # Pass cancellation check
         )
         
@@ -201,6 +211,15 @@ class DocumentStorageOperations:
         
         safe_logfire_info(f"Found {len(unique_source_ids)} unique source_ids: {list(unique_source_ids)}")
         
+        # Get the active LLM provider for summary generation
+        try:
+            provider_config = await credential_service.get_active_provider("llm")
+            active_provider = provider_config.get("provider", "openai")
+            safe_logfire_info(f"Using LLM provider '{active_provider}' for source summary generation")
+        except Exception as e:
+            safe_logfire_error(f"Failed to get active provider, falling back to OpenAI: {e}")
+            active_provider = "openai"
+        
         # Create source records for ALL unique source_ids
         for source_id in unique_source_ids:
             # Get combined content for this specific source_id
@@ -214,7 +233,7 @@ class DocumentStorageOperations:
             
             # Generate summary with fallback
             try:
-                summary = await extract_source_summary(source_id, combined_content)
+                summary = await extract_source_summary(source_id, combined_content, provider=active_provider)
             except Exception as e:
                 safe_logfire_error(f"Failed to generate AI summary for '{source_id}': {str(e)}, using fallback")
                 # Fallback to simple summary
