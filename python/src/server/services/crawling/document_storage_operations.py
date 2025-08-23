@@ -5,6 +5,7 @@ Handles the storage and processing of crawled documents.
 Extracted from crawl_orchestration_service.py for better modularity.
 """
 import asyncio
+import inspect
 from typing import Dict, Any, List, Optional, Callable
 from urllib.parse import urlparse
 
@@ -36,6 +37,21 @@ class DocumentStorageOperations:
         self.doc_storage_service = DocumentStorageService(supabase_client)
         self.code_extraction_service = CodeExtractionService(supabase_client)
     
+    async def _maybe_call_cancellation_check(self, fn):
+        if not fn:
+            return
+        try:
+            result = fn()
+            if inspect.isawaitable(result):
+                await result
+        except asyncio.CancelledError:
+            # Propagate cooperative cancellation
+            raise
+        except Exception as e:
+            safe_logfire_error(f"cancellation_check raised: {e}")
+            # Re-raise so upstream can stop the operation deterministically
+            raise
+
     async def process_and_store_documents(
         self,
         crawl_results: List[Dict],
@@ -87,10 +103,7 @@ class DocumentStorageOperations:
         for doc_index, doc in enumerate(crawl_results):
             # Check for cancellation during document processing
             if cancellation_check:
-                if asyncio.iscoroutinefunction(cancellation_check):
-                    await cancellation_check()
-                else:
-                    cancellation_check()
+                await self._maybe_call_cancellation_check(cancellation_check)
             
             source_url = doc.get('url', '')
             markdown_content = doc.get('markdown', '')
