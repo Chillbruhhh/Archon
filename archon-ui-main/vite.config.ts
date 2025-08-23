@@ -39,16 +39,32 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
           // Serve coverage directory statically
           server.middlewares.use(async (req, res, next) => {
             if (req.url?.startsWith('/coverage/')) {
-              const filePath = path.join(process.cwd(), req.url);
-              console.log('[VITE] Serving coverage file:', filePath);
+              // Serve only from the local ./coverage directory and prevent traversal
+              const coverageRoot = path.resolve(process.cwd(), 'coverage');
+              const rawUrl = req.url ?? '';
+              // Strip the leading route prefix and decode URL
+              const rel = decodeURIComponent(rawUrl.replace(/^\/coverage\/?/, ''));
+              // Normalize the relative path
+              const normalizedRel = path.normalize(rel);
+              // Resolve against coverage root
+              const resolvedPath = path.resolve(coverageRoot, normalizedRel);
+              // Ensure the resolved path stays within coverageRoot
+              const coverageRootWithSep = coverageRoot.endsWith(path.sep) ? coverageRoot : coverageRoot + path.sep;
+              if (!(resolvedPath === coverageRoot || resolvedPath.startsWith(coverageRootWithSep))) {
+                res.statusCode = 400;
+                res.end('Bad request');
+                return;
+              }
+              console.log('[VITE] Serving coverage file:', resolvedPath);
               try {
-                const data = await readFile(filePath);
+                const data = await readFile(resolvedPath);
                 const contentType = req.url.endsWith('.json') ? 'application/json' : 
                                   req.url.endsWith('.html') ? 'text/html' : 'text/plain';
                 res.setHeader('Content-Type', contentType);
+                res.setHeader('X-Content-Type-Options', 'nosniff');
                 res.end(data);
               } catch (err) {
-                console.log('[VITE] Coverage file not found:', filePath);
+                console.log('[VITE] Coverage file not found:', resolvedPath);
                 res.statusCode = 404;
                 res.end('Not found');
               }
@@ -164,7 +180,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
             // Add CI=true to get cleaner output without HTML dumps
             // Override the reporter to use verbose for better streaming output
             // When running in Docker, we need to ensure the test results directory exists
-            const testResultsDir = path.join(process.cwd(), 'public', 'test-results');
+            const testResultsDir = path.resolve(process.cwd(), 'public', 'test-results');
             if (!existsSync(testResultsDir)) {
               mkdirSync(testResultsDir, { recursive: true });
             }

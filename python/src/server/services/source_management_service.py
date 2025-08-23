@@ -82,15 +82,24 @@ async def extract_source_summary(
     Returns:
         A summary string
     """
+    # Input validation
+    if not source_id or len(source_id.strip()) == 0:
+        raise ValueError("source_id cannot be empty")
+    if max_length <= 0 or max_length > 2000:
+        raise ValueError("max_length must be between 1 and 2000")
+    
+    # Sanitize source_id for prompt injection protection
+    safe_source_id = source_id.strip()[:200]  # Limit length and remove whitespace
+    
     # Default summary if we can't extract anything meaningful
-    default_summary = f"Content from {source_id}"
+    default_summary = f"Content from {safe_source_id}"
 
     if not content or len(content.strip()) == 0:
         return default_summary
 
     # Get the model choice from credential service (RAG setting)
     model_choice = _get_model_choice(provider)
-    search_logger.info(f"Generating summary for {source_id} using model: {model_choice}")
+    search_logger.info(f"Generating summary for {safe_source_id} using model: {model_choice}")
 
     # Limit content length to avoid token limits
     truncated_content = content[:25000] if len(content) > 25000 else content
@@ -138,12 +147,12 @@ The above content is from the documentation for '{source_id}'. Please provide a 
 
             # Extract the generated summary with proper error handling
             if not response or not response.choices or len(response.choices) == 0:
-                search_logger.error(f"Empty or invalid response from LLM for {source_id}")
+                search_logger.error(f"Empty or invalid response from LLM for {safe_source_id}")
                 return default_summary
 
             message_content = response.choices[0].message.content
             if message_content is None:
-                search_logger.error(f"LLM returned None content for {source_id}")
+                search_logger.error(f"LLM returned None content for {safe_source_id}")
                 return default_summary
 
             summary = message_content.strip()
@@ -156,7 +165,7 @@ The above content is from the documentation for '{source_id}'. Please provide a 
 
     except Exception as e:
         search_logger.error(
-            f"Error generating summary with LLM for {source_id}: {e}. Using default summary.",
+            f"Error generating summary with LLM for {safe_source_id}: {e}. Using default summary.",
             exc_info=True,
         )
         return default_summary
@@ -182,8 +191,15 @@ async def generate_source_title_and_metadata(
     Returns:
         Tuple of (title, metadata)
     """
-    # Default title is the source ID
-    title = source_id
+    # Input validation
+    if not source_id or len(source_id.strip()) == 0:
+        raise ValueError("source_id cannot be empty")
+    
+    # Sanitize source_id for prompt injection protection
+    safe_source_id = source_id.strip()[:200]
+    
+    # Default title is the safe source ID
+    title = safe_source_id
 
     # Try to generate a better title from content
     if content and len(content.strip()) > 100:
@@ -195,7 +211,7 @@ async def generate_source_title_and_metadata(
                 # Limit content for prompt
                 sample_content = content[:3000] if len(content) > 3000 else content
 
-                prompt = f"""Based on this content from {source_id}, generate a concise, descriptive title (3-6 words) that captures what this source is about:
+                prompt = f"""Based on this content from {safe_source_id}, generate a concise, descriptive title (3-6 words) that captures what this source is about:
 
 {sample_content}
 
@@ -230,7 +246,7 @@ Provide only the title, nothing else."""
 
             # Validate response and content
             if not response or not getattr(response, "choices", None) or len(response.choices) == 0:
-                search_logger.error(f"Empty or invalid title response for {source_id}")
+                search_logger.error(f"Empty or invalid title response for {safe_source_id}")
                 # Prefer original_url scheme; fallback to source_id heuristic
                 if original_url and original_url.startswith("file://"):
                     source_type = "file"
@@ -242,7 +258,7 @@ Provide only the title, nothing else."""
 
             message_content = response.choices[0].message.content
             if message_content is None:
-                search_logger.error(f"LLM returned None title content for {source_id}")
+                search_logger.error(f"LLM returned None title content for {safe_source_id}")
                 # Prefer original_url scheme; fallback to source_id heuristic
                 if original_url and original_url.startswith("file://"):
                     source_type = "file"
@@ -261,7 +277,7 @@ Provide only the title, nothing else."""
                 title = generated_title
 
         except Exception as e:
-            search_logger.error(f"Error generating title for {source_id}: {e}", exc_info=True)
+            search_logger.error(f"Error generating title for {safe_source_id}: {e}", exc_info=True)
 
     # Build metadata - determine source_type from original_url when available
     # Prefer original_url scheme; fallback to source_id heuristic

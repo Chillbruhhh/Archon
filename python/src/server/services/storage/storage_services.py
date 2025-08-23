@@ -5,6 +5,7 @@ This module contains all storage service classes that handle document and data s
 These services extend the base storage functionality with specific implementations.
 """
 
+import os
 import inspect
 from typing import Any
 
@@ -46,11 +47,16 @@ class DocumentStorageService(BaseStorageService):
         Returns:
             Tuple of (success, result_dict)
         """
-        logger.info(f"Document upload starting: {filename} as {knowledge_type} knowledge")
+        # Validate filename to prevent malicious paths
+        safe_filename = os.path.basename(filename)  # Strip any path traversal
+        if not safe_filename or safe_filename.startswith('.') or len(safe_filename) > 255:
+            return False, {"error": "Invalid filename", "filename": safe_filename}
+        
+        logger.info(f"Document upload starting: {safe_filename} as {knowledge_type} knowledge")
         
         with safe_span(
             "upload_document",
-            filename=filename,
+            filename=safe_filename,
             source_id=source_id,
             content_length=len(file_content),
         ) as span:
@@ -67,7 +73,7 @@ class DocumentStorageService(BaseStorageService):
                         try:
                             data = {
                                 "type": "upload_progress",
-                                "filename": filename,
+                                "filename": safe_filename,
                                 "progress": progress_value,
                                 "message": message,
                             }
@@ -76,7 +82,7 @@ class DocumentStorageService(BaseStorageService):
                             await websocket.send_json(data)
                         except Exception as ws_err:
                             logger.warning(
-                                f"WebSocket progress send failed: {ws_err} | filename={filename} | source_id={source_id}",
+                                f"WebSocket progress send failed: {ws_err} | filename={safe_filename} | source_id={source_id}",
                                 exc_info=True,
                             )
                     if progress_callback:
@@ -87,7 +93,7 @@ class DocumentStorageService(BaseStorageService):
                                 await res
                         except Exception as cb_err:
                             logger.warning(
-                                f"Progress callback failed: {cb_err} | filename={filename} | source_id={source_id}",
+                                f"Progress callback failed: {cb_err} | filename={safe_filename} | source_id={source_id}",
                                 exc_info=True,
                             )
 
@@ -108,7 +114,7 @@ class DocumentStorageService(BaseStorageService):
                 await report_progress("Preparing document chunks...", 30)
 
                 # Prepare data for storage
-                doc_url = f"file://{filename}"
+                doc_url = f"file://{safe_filename}"
                 urls = []
                 chunk_numbers = []
                 contents = []
@@ -127,7 +133,7 @@ class DocumentStorageService(BaseStorageService):
                             "source_id": source_id,
                             "knowledge_type": knowledge_type,
                             "source_type": "file",  # FIX: Mark as file upload
-                            "filename": filename,
+                            "filename": safe_filename,
                         },
                     )
 
@@ -156,7 +162,7 @@ class DocumentStorageService(BaseStorageService):
                 except Exception as e:
                     logger.warning(
                         f"Failed to get active provider for file upload, falling back to OpenAI: {e} | "
-                        f"filename={filename} | source_id={source_id}"
+                        f"filename={safe_filename} | source_id={source_id}"
                     )
                     active_provider = "openai"
 
@@ -172,12 +178,12 @@ class DocumentStorageService(BaseStorageService):
                     active_embedding_provider = embedding_provider_config.get("provider", "openai")
                     logger.info(
                         f"Using embedding provider '{active_embedding_provider}' for file upload embeddings | "
-                        f"filename={filename} | source_id={source_id}"
+                        f"filename={safe_filename} | source_id={source_id}"
                     )
                 except Exception as e:
                     logger.warning(
                         f"Failed to get active embedding provider for file upload, falling back to OpenAI: {e} | "
-                        f"filename={filename} | source_id={source_id}"
+                        f"filename={safe_filename} | source_id={source_id}"
                     )
                     active_embedding_provider = "openai"
 
@@ -212,7 +218,7 @@ class DocumentStorageService(BaseStorageService):
                     content=file_content[:1000],
                     knowledge_type=knowledge_type,
                     tags=tags,
-                    original_url=f"file://{filename}",
+                    original_url=f"file://{safe_filename}",
                     provider=active_provider,
                 )
 
@@ -239,7 +245,7 @@ class DocumentStorageService(BaseStorageService):
                     "chunks_stored": len(chunks),
                     "total_word_count": total_word_count,
                     "source_id": source_id,
-                    "filename": filename,
+                    "filename": safe_filename,
                 }
 
                 span.set_attribute("success", True)
@@ -247,7 +253,7 @@ class DocumentStorageService(BaseStorageService):
                 span.set_attribute("total_word_count", total_word_count)
 
                 logger.info(
-                    f"Document upload completed successfully: filename={filename}, chunks_stored={len(chunks)}, total_word_count={total_word_count}"
+                    f"Document upload completed successfully: filename={safe_filename}, chunks_stored={len(chunks)}, total_word_count={total_word_count}"
                 )
 
                 return True, result
@@ -256,7 +262,7 @@ class DocumentStorageService(BaseStorageService):
                 span.set_attribute("success", False)
                 span.set_attribute("error", str(e))
                 logger.error(
-                    f"Error uploading document: {e} | filename={filename} | source_id={source_id}",
+                    f"Error uploading document: {e} | filename={safe_filename} | source_id={source_id}",
                     exc_info=True,
                 )
 
@@ -264,13 +270,13 @@ class DocumentStorageService(BaseStorageService):
                     await websocket.send_json({
                         "type": "upload_error",
                         "error": str(e),
-                        "filename": filename,
+                        "filename": safe_filename,
                         "source_id": source_id,
                     })
 
                 return False, {
                     "error": f"Error uploading document: {str(e)}",
-                    "filename": filename,
+                    "filename": safe_filename,
                     "source_id": source_id,
                 }
 
