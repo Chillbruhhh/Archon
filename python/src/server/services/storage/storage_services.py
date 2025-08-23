@@ -124,7 +124,7 @@ class DocumentStorageService(BaseStorageService):
                 url_to_full_document = {doc_url: file_content}
 
                 # Update source information
-                from ...utils import extract_source_summary, update_source_info
+                from ..source_management_service import extract_source_summary, update_source_info
                 from ..credential_service import credential_service
 
                 # Get the active LLM provider for summary generation
@@ -157,10 +157,11 @@ class DocumentStorageService(BaseStorageService):
                     source_id=source_id,
                     summary=source_summary,
                     word_count=total_word_count,
-                    title_input=file_content[:1000],
+                    content=file_content[:1000],
                     knowledge_type=knowledge_type,
                     tags=tags,
-                    provider=active_provider
+                    original_url=f"file://{filename}",
+                    provider=active_provider,
                 )
 
                 await report_progress("Storing document chunks...", 70)
@@ -202,7 +203,10 @@ class DocumentStorageService(BaseStorageService):
             except Exception as e:
                 span.set_attribute("success", False)
                 span.set_attribute("error", str(e))
-                logger.error(f"Error uploading document: {e}")
+                logger.error(
+                    f"Error uploading document: {e} | filename={filename} | source_id={source_id}",
+                    exc_info=True,
+                )
 
                 if websocket:
                     await websocket.send_json({
@@ -211,7 +215,11 @@ class DocumentStorageService(BaseStorageService):
                         "filename": filename,
                     })
 
-                return False, {"error": f"Error uploading document: {str(e)}"}
+                return False, {
+                    "error": f"Error uploading document: {str(e)}",
+                    "filename": filename,
+                    "source_id": source_id,
+                }
 
     async def store_documents(self, documents: list[dict[str, Any]], **kwargs) -> dict[str, Any]:
         """

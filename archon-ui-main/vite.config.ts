@@ -17,8 +17,9 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
   // For external access, use the HOST from environment
   const isDocker = process.env.DOCKER_ENV === 'true' || !!process.env.HOSTNAME;
   const internalHost = 'archon-server';  // Docker service name for internal communication
-  const externalHost = process.env.HOST || 'localhost';  // Host for external access
-  const host = isDocker ? internalHost : externalHost;
+  // Explicit backend host to avoid accidentally using HOST=0.0.0.0
+  const serverHost = process.env.ARCHON_SERVER_HOST || env.ARCHON_SERVER_HOST || 'localhost';
+  const host = isDocker ? internalHost : serverHost;
   const serverPort = process.env.ARCHON_SERVER_PORT || env.ARCHON_SERVER_PORT || '8181';
 
   // UI port configuration - use 5173 in Docker (mapped to 3737 externally),
@@ -94,7 +95,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               const lines = data.toString().split('\n').filter((line: string) => line.trim());
               lines.forEach((line: string) => {
                 // Strip ANSI escape codes
-                const cleanLine = line.replace(/\\x1b\[[0-9;]*m/g, '');
+                const cleanLine = line.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
                 res.write(`data: ${JSON.stringify({ type: 'output', message: cleanLine, timestamp: new Date().toISOString() })}\n\n`);
               });
             });
@@ -166,7 +167,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               
               lines.forEach((line: string) => {
                 // Strip ANSI escape codes to get clean text
-                const cleanLine = line.replace(/\\x1b\[[0-9;]*m/g, '');
+                const cleanLine = line.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
                 
                 // Send all lines for verbose reporter output
                 res.write(`data: ${JSON.stringify({ type: 'output', message: cleanLine, timestamp: new Date().toISOString() })}\n\n`);
@@ -182,7 +183,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               const lines = data.toString().split('\n').filter((line: string) => line.trim());
               lines.forEach((line: string) => {
                 // Strip ANSI escape codes
-                const cleanLine = line.replace(/\\x1b\[[0-9;]*m/g, '');
+                const cleanLine = line.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
                 res.write(`data: ${JSON.stringify({ type: 'output', message: cleanLine, timestamp: new Date().toISOString() })}\n\n`);
               });
             });

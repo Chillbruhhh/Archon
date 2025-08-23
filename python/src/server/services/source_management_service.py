@@ -323,7 +323,7 @@ async def update_source_info(
             search_logger.info(f"Created new source {source_id} with title: {title}")
 
     except Exception as e:
-        search_logger.error(f"Error updating source {source_id}: {e}")
+        search_logger.error(f"Error updating source {source_id}: {e}", exc_info=True)
         raise  # Re-raise the exception so the caller knows it failed
 
 
@@ -359,7 +359,7 @@ class SourceManagementService:
             return True, {"sources": sources, "total_count": len(sources)}
 
         except Exception as e:
-            logger.error(f"Error retrieving sources: {e}")
+            logger.error(f"Error retrieving sources: {e}", exc_info=True)
             return False, {"error": f"Error retrieving sources: {str(e)}"}
 
     def delete_source(self, source_id: str) -> tuple[bool, dict[str, Any]]:
@@ -429,7 +429,7 @@ class SourceManagementService:
             }
 
         except Exception as e:
-            logger.error(f"Unexpected error in delete_source: {e}")
+            logger.error(f"Unexpected error in delete_source: {e}", exc_info=True)
             return False, {"error": f"Error deleting source: {str(e)}"}
 
     def update_source_metadata(
