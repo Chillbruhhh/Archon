@@ -87,7 +87,10 @@ class DocumentStorageOperations:
         for doc_index, doc in enumerate(crawl_results):
             # Check for cancellation during document processing
             if cancellation_check:
-                cancellation_check()
+                if asyncio.iscoroutinefunction(cancellation_check):
+                    await cancellation_check()
+                else:
+                    cancellation_check()
             
             source_url = doc.get('url', '')
             markdown_content = doc.get('markdown', '')
@@ -109,7 +112,10 @@ class DocumentStorageOperations:
             for i, chunk in enumerate(chunks):
                 # Check for cancellation during chunk processing
                 if cancellation_check and i % 10 == 0:  # Check every 10 chunks
-                    cancellation_check()
+                    if asyncio.iscoroutinefunction(cancellation_check):
+                        await cancellation_check()
+                    else:
+                        cancellation_check()
                 
                 all_urls.append(source_url)
                 all_chunk_numbers.append(i)
@@ -151,7 +157,17 @@ class DocumentStorageOperations:
         safe_logfire_info(f"url_to_full_document keys: {list(url_to_full_document.keys())[:5]}")
         
         # Log chunking results
-        safe_logfire_info(f"Document storage | documents={len(crawl_results)} | chunks={len(all_contents)} | avg_chunks_per_doc={len(all_contents)/len(crawl_results):.1f}")
+        docs_requested = len(crawl_results)
+        docs_indexed = len(set(all_urls)) or 0  # alternatively: len(url_to_full_document)
+        chunks = len(all_contents)
+        avg_by_requested = (chunks / docs_requested) if docs_requested else 0
+        avg_by_indexed = (chunks / docs_indexed) if docs_indexed else 0
+        safe_logfire_info(
+            "Document storage | "
+            f"requested={docs_requested} | indexed={docs_indexed} | chunks={chunks} | "
+            f"avg_chunks_per_requested={avg_by_requested:.1f} | avg_chunks_per_indexed={avg_by_indexed:.1f}"
+        )
+        
         
         # Call add_documents_to_supabase with the correct parameters
         await add_documents_to_supabase(

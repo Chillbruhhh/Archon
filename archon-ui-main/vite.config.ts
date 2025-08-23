@@ -53,11 +53,41 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
           // Serve coverage directory statically
           server.middlewares.use(async (req, res, next) => {
             if (req.url?.startsWith('/coverage/')) {
+              // Security: explicit opt-in required to expose coverage artifacts
+              if (process.env.VITE_ENABLE_TEST_API !== 'true') {
+                res.statusCode = 403;
+                res.end('Coverage browsing disabled');
+                return;
+              }
+              // Only allow safe methods for static assets
+              if (req.method && !['GET', 'HEAD'].includes(req.method)) {
+                res.statusCode = 405;
+                res.end('Method not allowed');
+                return;
+              }
+              
               // Serve only from the local ./coverage directory and prevent traversal
               const coverageRoot = path.resolve(process.cwd(), 'coverage');
               const rawUrl = req.url ?? '';
-              // Strip the leading route prefix and decode URL
-              const rel = decodeURIComponent(rawUrl.replace(/^\/coverage\/?/, ''));
+              
+              // Strip the leading route prefix and decode URL safely
+              let rel: string;
+              try {
+                rel = decodeURIComponent(rawUrl.replace(/^\/coverage\/?/, ''));
+                // Default to index.html for directory access
+                if (!rel || rel === '/') rel = 'index.html';
+                // Reject requests with NUL bytes
+                if (rel.includes('\0')) {
+                  res.statusCode = 400;
+                  res.end('Bad request');
+                  return;
+                }
+              } catch {
+                res.statusCode = 400;
+                res.end('Bad request');
+                return;
+              }
+              
               // Normalize the relative path
               const normalizedRel = path.normalize(rel);
               // Resolve against coverage root
@@ -69,17 +99,31 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
                 res.end('Bad request');
                 return;
               }
-              console.log('[VITE] Serving coverage file:', resolvedPath);
+              
+              console.log('[VITE] Serving coverage file:', rel || 'index');
               try {
                 const data = await readFile(resolvedPath);
-                const contentType = req.url.endsWith('.json') ? 'application/json' : 
-                                  req.url.endsWith('.html') ? 'text/html' : 'text/plain';
+                const ext = path.extname(resolvedPath).toLowerCase();
+                const contentType =
+                  ext === '.json' ? 'application/json' :
+                  ext === '.map'  ? 'application/json' :
+                  ext === '.html' ? 'text/html; charset=utf-8' :
+                  ext === '.css'  ? 'text/css; charset=utf-8' :
+                  ext === '.js'   ? 'text/javascript; charset=utf-8' :
+                  ext === '.mjs'  ? 'text/javascript; charset=utf-8' :
+                  ext === '.xml'  ? 'application/xml' :
+                  ext === '.svg'  ? 'image/svg+xml' :
+                  ext === '.txt'  ? 'text/plain; charset=utf-8' :
+                  ext === '.ico'  ? 'image/x-icon' :
+                  'application/octet-stream';
                 res.setHeader('Content-Type', contentType);
                 res.setHeader('X-Content-Type-Options', 'nosniff');
                 res.end(data);
               } catch (err) {
-                console.log('[VITE] Coverage file not found:', resolvedPath);
+                console.log('[VITE] Coverage file not found:', rel || 'index');
                 res.statusCode = 404;
+                res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+                res.setHeader('Cache-Control', 'no-store');
                 res.end('Not found');
               }
             } else {
@@ -384,13 +428,16 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
       environment: 'jsdom',
       setupFiles: './test/setup.ts',
       css: true,
+      include: [
+        'src/**/*.{test,spec}.{ts,tsx}',
+        'test/**/*.{test,spec}.{ts,tsx}'
+      ],
       exclude: [
         '**/node_modules/**',
         '**/dist/**',
         '**/cypress/**',
         '**/.{idea,git,cache,output,temp}/**',
         '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*',
-        '**/*.test.{ts,tsx}',
       ],
       env: {
         VITE_HOST: host,
