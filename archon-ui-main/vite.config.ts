@@ -2,13 +2,27 @@
 import path from "path";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
-import { spawn } from 'child_process';
+import { spawn, type ChildProcess } from 'child_process';
 import { readFile } from 'fs/promises';
 import { existsSync, mkdirSync } from 'fs';
 import type { ConfigEnv, UserConfig } from 'vite';
 
 // Shared ANSI escape sequence regex for consistent stripping (built to avoid linter control-char rule)
-const ANSI_REGEX = new RegExp('\\u001B\\[[0-9;?]*[ -/]*[@-~]', 'g');
+const ANSI_REGEX = new RegExp('\u001B\[[0-9;?]*[ -/]*[@-~]', 'g');
+
+function killProcessTree(cp: ChildProcess) {
+  if (!cp || typeof cp.pid !== 'number') return;
+  try {
+    if (process.platform === 'win32') {
+      // /T kills the whole tree, /F forces
+      const killer = spawn('taskkill', ['/PID', String(cp.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+      killer.on('error', () => {/* swallow */});
+    } else {
+      // Kill the process group if detached, else the pid
+      try { process.kill(-cp.pid, 'SIGTERM'); } catch { process.kill(cp.pid, 'SIGTERM'); }
+    }
+  } catch { /* swallow */ }
+}
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
@@ -81,8 +95,8 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               return;
             }
 
-            // Security: Gate test endpoints when binding to 0.0.0.0
-            if (process.env.VITE_ENABLE_TEST_API !== 'true' && !isDocker) {
+            // Security: Explicit opt-in required for test endpoints in any environment
+            if (process.env.VITE_ENABLE_TEST_API !== 'true') {
               res.statusCode = 403;
               res.end('Test API disabled for security');
               return;
@@ -101,6 +115,8 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               cwd: process.cwd(),
               stdio: ['ignore', 'pipe', 'pipe'],
               shell: process.platform === 'win32', // ensure npm resolution on Windows
+              detached: process.platform !== 'win32',
+              windowsHide: true,
             });
 
             testProcess.stdout?.on('data', (data) => {
@@ -148,9 +164,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               res.end();
             });
 
-            req.on('close', () => {
-              testProcess.kill();
-            });
+            req.on('close', () => killProcessTree(testProcess));
           });
 
           // Test execution with coverage endpoint
@@ -161,8 +175,8 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               return;
             }
 
-            // Security: Gate test endpoints when binding to 0.0.0.0
-            if (process.env.VITE_ENABLE_TEST_API !== 'true' && !isDocker) {
+            // Security: Explicit opt-in required for test endpoints in any environment
+            if (process.env.VITE_ENABLE_TEST_API !== 'true') {
               res.statusCode = 403;
               res.end('Test API disabled for security');
               return;
@@ -195,6 +209,8 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               }, // Enable color output and CI mode for cleaner output
               stdio: ['ignore', 'pipe', 'pipe'],
               shell: process.platform === 'win32',
+              detached: process.platform !== 'win32',
+              windowsHide: true,
             });
 
             testProcess.stdout?.on('data', (data) => {
@@ -245,9 +261,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               res.end();
             });
 
-            req.on('close', () => {
-              testProcess.kill();
-            });
+            req.on('close', () => killProcessTree(testProcess));
           });
 
           // Coverage generation endpoint
@@ -258,8 +272,8 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               return;
             }
 
-            // Security: Gate test endpoints when binding to 0.0.0.0
-            if (process.env.VITE_ENABLE_TEST_API !== 'true' && !isDocker) {
+            // Security: Explicit opt-in required for test endpoints in any environment
+            if (process.env.VITE_ENABLE_TEST_API !== 'true') {
               res.statusCode = 403;
               res.end('Test API disabled for security');
               return;
@@ -284,6 +298,8 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               cwd: process.cwd(),
               stdio: ['ignore', 'pipe', 'pipe'],
               shell: process.platform === 'win32',
+              detached: process.platform !== 'win32',
+              windowsHide: true,
             });
 
             coverageProcess.stdout?.on('data', (data) => {
@@ -320,9 +336,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               res.end();
             });
 
-            req.on('close', () => {
-              coverageProcess.kill();
-            });
+            req.on('close', () => killProcessTree(coverageProcess));
           });
         }
       }

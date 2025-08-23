@@ -66,6 +66,10 @@ class DocumentStorageOperations:
         try:
             embedding_provider_config = await credential_service.get_active_provider("embedding")
             active_embedding_provider = embedding_provider_config.get("provider", "openai")
+            # OpenRouter does not support embeddings—force OpenAI here
+            if active_embedding_provider.lower() == "openrouter":
+                safe_logfire_info("Embedding provider 'openrouter' not supported for embeddings, falling back to OpenAI")
+                active_embedding_provider = "openai"
             safe_logfire_info(f"Using embedding provider '{active_embedding_provider}' for document embeddings")
         except Exception as e:
             safe_logfire_error(f"Failed to get active embedding provider, falling back to OpenAI: {e}")
@@ -320,5 +324,4 @@ class DocumentStorageOperations:
             start_progress,
             end_progress
         )
-        
         return result

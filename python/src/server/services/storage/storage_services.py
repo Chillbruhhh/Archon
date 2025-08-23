@@ -6,7 +6,9 @@ These services extend the base storage functionality with specific implementatio
 """
 
 import os
+import ntpath
 import inspect
+from urllib.parse import quote
 from typing import Any
 
 from fastapi import WebSocket
@@ -47,10 +49,19 @@ class DocumentStorageService(BaseStorageService):
         Returns:
             Tuple of (success, result_dict)
         """
-        # Validate filename to prevent malicious paths
-        safe_filename = os.path.basename(filename)  # Strip any path traversal
-        if not safe_filename or safe_filename.startswith('.') or len(safe_filename) > 255:
-            return False, {"error": "Invalid filename", "filename": safe_filename}
+        # Strip any path traversal (handle both POSIX and Windows separators)
+        # Strip any path traversal (handle both POSIX and Windows separators)
+        candidate = os.path.basename(filename)
+        safe_filename = ntpath.basename(candidate) or candidate
+
+        # Comprehensive validation
+        if (not safe_filename or
+            safe_filename.startswith('.') or
+            '..' in safe_filename or
+            safe_filename.strip() == '' or
+            len(safe_filename) > 255 or
+            any(c in safe_filename for c in ['/', '\\', '\0', ':', '*', '?', '"', '<', '>', '|'])):
+            return False, {"error": "Invalid filename", "filename": safe_filename, "source_id": source_id}
         
         logger.info(f"Document upload starting: {safe_filename} as {knowledge_type} knowledge")
         
@@ -114,7 +125,7 @@ class DocumentStorageService(BaseStorageService):
                 await report_progress("Preparing document chunks...", 30)
 
                 # Prepare data for storage
-                doc_url = f"file://{safe_filename}"
+                doc_url = f"file://{quote(safe_filename)}"
                 urls = []
                 chunk_numbers = []
                 contents = []
@@ -176,6 +187,13 @@ class DocumentStorageService(BaseStorageService):
                 try:
                     embedding_provider_config = await credential_service.get_active_provider("embedding")
                     active_embedding_provider = embedding_provider_config.get("provider", "openai")
+                    # OpenRouter does not support embeddings—force OpenAI here
+                    if active_embedding_provider.lower() == "openrouter":
+                        logger.warning(
+                            "Embedding provider 'openrouter' not supported for embeddings, falling back to OpenAI | "
+                            f"filename={safe_filename} | source_id={source_id}"
+                        )
+                        active_embedding_provider = "openai"
                     logger.info(
                         f"Using embedding provider '{active_embedding_provider}' for file upload embeddings | "
                         f"filename={safe_filename} | source_id={source_id}"
@@ -218,7 +236,7 @@ class DocumentStorageService(BaseStorageService):
                     content=file_content[:1000],
                     knowledge_type=knowledge_type,
                     tags=tags,
-                    original_url=f"file://{safe_filename}",
+                    original_url=doc_url,
                     provider=active_provider,
                 )
 
@@ -267,12 +285,18 @@ class DocumentStorageService(BaseStorageService):
                 )
 
                 if websocket:
-                    await websocket.send_json({
-                        "type": "upload_error",
-                        "error": str(e),
-                        "filename": safe_filename,
-                        "source_id": source_id,
-                    })
+                    try:
+                        await websocket.send_json({
+                            "type": "upload_error",
+                            "error": str(e),
+                            "filename": safe_filename,
+                            "source_id": source_id,
+                        })
+                    except Exception as ws_err:
+                        logger.warning(
+                            f"WebSocket error-notify failed: {ws_err} | filename={safe_filename} | source_id={source_id}",
+                            exc_info=True,
+                        )
 
                 return False, {
                     "error": f"Error uploading document: {str(e)}",
