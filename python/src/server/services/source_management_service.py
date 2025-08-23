@@ -43,13 +43,26 @@ def _get_model_choice(provider: str | None = None) -> str:
 
         # Sane defaults per provider
         if not model:
-            model = "openrouter/auto" if provider == "openrouter" else "gpt-4.1-nano"
+            DEFAULT_MODEL_BY_PROVIDER = {
+                "openrouter": "gpt-4.1-nano",
+                "openai": "gpt-4.1-nano",
+                "google": "gemini-2.5-flash",
+                "ollama": "llama3.1:8b",
+            }
+            model = DEFAULT_MODEL_BY_PROVIDER.get((provider or "openai").lower(), "gpt-4.1-nano")
 
         logger.debug(f"Using model choice ({provider or 'default'}): {model}")
         return model
     except Exception as e:
         logger.warning(f"Error getting model choice ({provider or 'default'}): {e}, using default")
-        return "openrouter/auto" if provider == "openrouter" else "gpt-4.1-nano"
+        # Mirror the normal defaulting path on error
+        fallback_provider = (provider or "openai").lower()
+        return {
+            "openrouter": "gpt-4.1-nano",
+            "openai": "gpt-4.1-nano",
+            "google": "gemini-2.5-flash",
+            "ollama": "llama3.1:8b",
+        }.get(fallback_provider, "gpt-4.1-nano")
 
 
 async def extract_source_summary(
@@ -155,6 +168,7 @@ async def generate_source_title_and_metadata(
     knowledge_type: str = "technical",
     tags: list[str] | None = None,
     provider: str = None,
+    original_url: str | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """
     Generate a user-friendly title and metadata for a source based on its content.
@@ -217,12 +231,26 @@ Provide only the title, nothing else."""
             # Validate response and content
             if not response or not getattr(response, "choices", None) or len(response.choices) == 0:
                 search_logger.error(f"Empty or invalid title response for {source_id}")
-                return title, {"knowledge_type": knowledge_type, "tags": tags or [], "source_type": ("file" if source_id.startswith("file_") else "url"), "auto_generated": True}
+                # Prefer original_url scheme; fallback to source_id heuristic
+                if original_url and original_url.startswith("file://"):
+                    source_type = "file"
+                elif original_url:
+                    source_type = "url"
+                else:
+                    source_type = "file" if source_id.startswith("file_") else "url"
+                return title, {"knowledge_type": knowledge_type, "tags": tags or [], "source_type": source_type, "auto_generated": True}
 
             message_content = response.choices[0].message.content
             if message_content is None:
                 search_logger.error(f"LLM returned None title content for {source_id}")
-                return title, {"knowledge_type": knowledge_type, "tags": tags or [], "source_type": ("file" if source_id.startswith("file_") else "url"), "auto_generated": True}
+                # Prefer original_url scheme; fallback to source_id heuristic
+                if original_url and original_url.startswith("file://"):
+                    source_type = "file"
+                elif original_url:
+                    source_type = "url"
+                else:
+                    source_type = "file" if source_id.startswith("file_") else "url"
+                return title, {"knowledge_type": knowledge_type, "tags": tags or [], "source_type": source_type, "auto_generated": True}
 
             generated_title = message_content.strip()
             # Clean up the title
@@ -235,8 +263,14 @@ Provide only the title, nothing else."""
         except Exception as e:
             search_logger.error(f"Error generating title for {source_id}: {e}", exc_info=True)
 
-    # Build metadata - determine source_type from source_id pattern
-    source_type = "file" if source_id.startswith("file_") else "url"
+    # Build metadata - determine source_type from original_url when available
+    # Prefer original_url scheme; fallback to source_id heuristic
+    if original_url and original_url.startswith("file://"):
+        source_type = "file"
+    elif original_url:
+        source_type = "url"
+    else:
+        source_type = "file" if source_id.startswith("file_") else "url"
     metadata = {
         "knowledge_type": knowledge_type, 
         "tags": tags or [], 
@@ -284,7 +318,13 @@ async def update_source_info(
             search_logger.info(f"Preserving existing title for {source_id}: {existing_title}")
 
             # Update metadata while preserving title
-            source_type = "file" if source_id.startswith("file_") else "url"
+            # Prefer original_url scheme; fallback to source_id heuristic
+            if original_url and original_url.startswith("file://"):
+                source_type = "file"
+            elif original_url:
+                source_type = "url"
+            else:
+                source_type = "file" if source_id.startswith("file_") else "url"
             metadata = {
                 "knowledge_type": knowledge_type,
                 "tags": tags or [],
@@ -314,13 +354,15 @@ async def update_source_info(
         else:
             # New source - generate title and metadata
             title, metadata = await generate_source_title_and_metadata(
-                source_id, content, knowledge_type, tags, provider=provider
+                source_id, content, knowledge_type, tags, provider=provider, original_url=original_url
             )
 
             # Add update_frequency and original_url to metadata
             metadata["update_frequency"] = update_frequency
             if original_url:
                 metadata["original_url"] = original_url
+                # Ensure source_type reflects the actual scheme
+                metadata["source_type"] = "file" if original_url.startswith("file://") else "url"
 
             # Insert new source
             client.table("archon_sources").insert({

@@ -187,7 +187,7 @@ async def get_embedding_model(provider: str | None = None) -> str:
             return "nomic-embed-text"
         elif provider_name == "google":
             # Google's embedding model
-            return "text-embedding-004"
+            return "gemini-embedding-001"
         elif provider_name == "openrouter":
             # OpenRouter supports OpenAI embedding models
             return "text-embedding-3-small"

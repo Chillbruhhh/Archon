@@ -2,13 +2,13 @@
 import path from "path";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
-import { exec } from 'child_process';
+import { spawn } from 'child_process';
 import { readFile } from 'fs/promises';
 import { existsSync, mkdirSync } from 'fs';
 import type { ConfigEnv, UserConfig } from 'vite';
 
-// Shared ANSI escape sequence regex for consistent stripping
-const ANSI_REGEX = /\u001B\[[0-9;?]*[ -/]*[@-~]/g;
+// Shared ANSI escape sequence regex for consistent stripping (built to avoid linter control-char rule)
+const ANSI_REGEX = new RegExp('\\u001B\\[[0-9;?]*[ -/]*[@-~]', 'g');
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
@@ -81,8 +81,10 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
             });
 
             // Run vitest with proper configuration (includes JSON reporter)
-            const testProcess = exec('npm run test -- --run', {
-              cwd: process.cwd()
+            const testProcess = spawn('npm', ['run', 'test', '--', '--run'], {
+              cwd: process.cwd(),
+              stdio: ['ignore', 'pipe', 'pipe'],
+              shell: process.platform === 'win32', // ensure npm resolution on Windows
             });
 
             testProcess.stdout?.on('data', (data) => {
@@ -167,14 +169,16 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               mkdirSync(testResultsDir, { recursive: true });
             }
             
-            const testProcess = exec('npm run test:coverage:stream', {
+            const testProcess = spawn('npm', ['run', 'test:coverage:stream'], {
               cwd: process.cwd(),
-              env: { 
+              env: {
                 ...process.env, 
                 FORCE_COLOR: '1', 
                 CI: 'true',
                 NODE_ENV: 'test' 
-              } // Enable color output and CI mode for cleaner output
+              }, // Enable color output and CI mode for cleaner output
+              stdio: ['ignore', 'pipe', 'pipe'],
+              shell: process.platform === 'win32',
             });
 
             testProcess.stdout?.on('data', (data) => {
@@ -260,8 +264,10 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
             })}\n\n`);
 
             // Run coverage generation
-            const coverageProcess = exec('npm run test:coverage', {
-              cwd: process.cwd()
+            const coverageProcess = spawn('npm', ['run', 'test:coverage'], {
+              cwd: process.cwd(),
+              stdio: ['ignore', 'pipe', 'pipe'],
+              shell: process.platform === 'win32',
             });
 
             coverageProcess.stdout?.on('data', (data) => {

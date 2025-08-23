@@ -5,6 +5,7 @@ This module contains all storage service classes that handle document and data s
 These services extend the base storage functionality with specific implementations.
 """
 
+import inspect
 from typing import Any
 
 from fastapi import WebSocket
@@ -55,19 +56,40 @@ class DocumentStorageService(BaseStorageService):
         ) as span:
             try:
                 # Progress reporting helper
-                async def report_progress(message: str, percentage: int, batch_info: dict = None):
+                async def report_progress(message: str, percentage: float, batch_info: dict | None = None):
+                    # Normalize, clamp, and convert to int for UI
+                    try:
+                        progress_value = int(round(min(max(percentage, 0.0), 100.0)))
+                    except Exception:
+                        progress_value = 0
+
                     if websocket:
-                        data = {
-                            "type": "upload_progress",
-                            "filename": filename,
-                            "progress": percentage,
-                            "message": message,
-                        }
-                        if batch_info:
-                            data.update(batch_info)
-                        await websocket.send_json(data)
+                        try:
+                            data = {
+                                "type": "upload_progress",
+                                "filename": filename,
+                                "progress": progress_value,
+                                "message": message,
+                            }
+                            if batch_info:
+                                data.update(batch_info)
+                            await websocket.send_json(data)
+                        except Exception as ws_err:
+                            logger.warning(
+                                f"WebSocket progress send failed: {ws_err} | filename={filename} | source_id={source_id}",
+                                exc_info=True,
+                            )
                     if progress_callback:
-                        await progress_callback(message, percentage, batch_info)
+                        try:
+                            res = progress_callback(message, progress_value, batch_info)
+                            # Support both sync and async callbacks
+                            if inspect.isawaitable(res):
+                                await res
+                        except Exception as cb_err:
+                            logger.warning(
+                                f"Progress callback failed: {cb_err} | filename={filename} | source_id={source_id}",
+                                exc_info=True,
+                            )
 
                 await report_progress("Starting document processing...", 10)
 
