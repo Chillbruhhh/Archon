@@ -15,7 +15,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
   // Get host and port from environment variables or use defaults
   // For internal Docker communication, use the service name
   // For external access, use the HOST from environment
-  const isDocker = process.env.DOCKER_ENV === 'true' || !!process.env.HOSTNAME;
+  const isDocker = process.env.DOCKER_ENV === 'true' || existsSync('/.dockerenv');
   const internalHost = 'archon-server';  // Docker service name for internal communication
   // Explicit backend host to avoid accidentally using HOST=0.0.0.0
   const serverHost = process.env.ARCHON_SERVER_HOST || env.ARCHON_SERVER_HOST || 'localhost';
@@ -283,7 +283,8 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
     ],
     server: {
       host: '0.0.0.0', // Listen on all network interfaces with explicit IP
-      port: uiPort, // Use dynamic port based on environment
+      port: uiPort, // Use dynamic port based on environmet
+      port: parseInt(process.env.ARCHON_UI_PORT || env.ARCHON_UI_PORT || '3737'), // Use configurable port
       strictPort: true, // Exit if port is in use
       proxy: {
         '/api': {

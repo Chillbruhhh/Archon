@@ -4,3 +4,4 @@ __pycache__
 .claude/settings.local.json
 PRPs/local
 node_modules/
+/logs/
