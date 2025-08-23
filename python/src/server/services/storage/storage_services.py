@@ -138,20 +138,47 @@ class DocumentStorageService(BaseStorageService):
                     )
                     active_provider = "openai"
 
+                # Trace: record which LLM provider was used
+                try:
+                    span.set_attribute("active_provider", active_provider)
+                except Exception:
+                    pass
+
                 # Get the active embedding provider for document embeddings
                 try:
                     embedding_provider_config = await credential_service.get_active_provider("embedding")
                     active_embedding_provider = embedding_provider_config.get("provider", "openai")
-                    logger.info(f"Using embedding provider '{active_embedding_provider}' for file upload embeddings")
+                    logger.info(
+                        f"Using embedding provider '{active_embedding_provider}' for file upload embeddings | "
+                        f"filename={filename} | source_id={source_id}"
+                    )
                 except Exception as e:
-                    logger.warning(f"Failed to get active embedding provider for file upload, falling back to OpenAI: {e}")
+                    logger.warning(
+                        f"Failed to get active embedding provider for file upload, falling back to OpenAI: {e} | "
+                        f"filename={filename} | source_id={source_id}"
+                    )
                     active_embedding_provider = "openai"
+
+                # Trace: record which embedding provider was used
+                try:
+                    span.set_attribute("active_embedding_provider", active_embedding_provider)
+                except Exception:
+                    pass
+
+                # Build a representative sample across the document to avoid intro bias (5k total)
+                summary_sample = (
+                    file_content[:1700]
+                    + "\n...\n"
+                    + file_content[max(len(file_content) // 2 - 850, 0) : (len(file_content) // 2 + 850)]
+                    + "\n...\n"
+                    + file_content[-1600:]
+                ) if len(file_content) > 5000 else file_content[:5000]
 
                 source_summary = await extract_source_summary(
                     source_id,
-                    file_content[:3000],
+                    summary_sample,
                     500,
-                    active_provider
+                    active_provider,
                 )
 
                 logger.info(f"Updating source info for {source_id} with knowledge_type={knowledge_type}")
@@ -216,6 +243,7 @@ class DocumentStorageService(BaseStorageService):
                         "type": "upload_error",
                         "error": str(e),
                         "filename": filename,
+                        "source_id": source_id,
                     })
 
                 return False, {

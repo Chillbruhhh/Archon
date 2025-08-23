@@ -91,7 +91,7 @@ The above content is from the documentation for '{source_id}'. Please provide a 
 """
 
     try:
-                    # Use the provider-aware LLM client
+            # Use the provider-aware LLM client
             async with get_llm_client(provider=provider) as client:
                 search_logger.info("Successfully created LLM client for summary generation")
                 

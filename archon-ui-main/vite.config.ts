@@ -7,6 +7,9 @@ import { readFile } from 'fs/promises';
 import { existsSync, mkdirSync } from 'fs';
 import type { ConfigEnv, UserConfig } from 'vite';
 
+// Shared ANSI escape sequence regex for consistent stripping
+const ANSI_REGEX = /\u001B\[[0-9;?]*[ -/]*[@-~]/g;
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
   // Load environment variables
@@ -62,6 +65,13 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               return;
             }
 
+            // Security: Gate test endpoints when binding to 0.0.0.0
+            if (process.env.VITE_ENABLE_TEST_API !== 'true' && !isDocker) {
+              res.statusCode = 403;
+              res.end('Test API disabled for security');
+              return;
+            }
+
             res.writeHead(200, {
               'Content-Type': 'text/event-stream',
               'Cache-Control': 'no-cache',
@@ -95,7 +105,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               const lines = data.toString().split('\n').filter((line: string) => line.trim());
               lines.forEach((line: string) => {
                 // Strip ANSI escape codes
-                const cleanLine = line.replace(/\u001B\[[0-9;?]*[ -/]*[@-~]/g, '');
+                const cleanLine = line.replace(ANSI_REGEX, '');
                 res.write(`data: ${JSON.stringify({ type: 'output', message: cleanLine, timestamp: new Date().toISOString() })}\n\n`);
               });
             });
@@ -133,6 +143,13 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               return;
             }
 
+            // Security: Gate test endpoints when binding to 0.0.0.0
+            if (process.env.VITE_ENABLE_TEST_API !== 'true' && !isDocker) {
+              res.statusCode = 403;
+              res.end('Test API disabled for security');
+              return;
+            }
+
             res.writeHead(200, {
               'Content-Type': 'text/event-stream',
               'Cache-Control': 'no-cache',
@@ -167,7 +184,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               
               lines.forEach((line: string) => {
                 // Strip ANSI escape codes to get clean text
-                const cleanLine = line.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+                const cleanLine = line.replace(ANSI_REGEX, '');
                 
                 // Send all lines for verbose reporter output
                 res.write(`data: ${JSON.stringify({ type: 'output', message: cleanLine, timestamp: new Date().toISOString() })}\n\n`);
@@ -183,7 +200,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               const lines = data.toString().split('\n').filter((line: string) => line.trim());
               lines.forEach((line: string) => {
                 // Strip ANSI escape codes
-                const cleanLine = line.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+                const cleanLine = line.replace(ANSI_REGEX, '');
                 res.write(`data: ${JSON.stringify({ type: 'output', message: cleanLine, timestamp: new Date().toISOString() })}\n\n`);
               });
             });
@@ -218,6 +235,13 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
             if (req.method !== 'POST') {
               res.statusCode = 405;
               res.end('Method not allowed');
+              return;
+            }
+
+            // Security: Gate test endpoints when binding to 0.0.0.0
+            if (process.env.VITE_ENABLE_TEST_API !== 'true' && !isDocker) {
+              res.statusCode = 403;
+              res.end('Test API disabled for security');
               return;
             }
 
@@ -293,12 +317,12 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
           ws: true,
           configure: (proxy) => {
             proxy.on('error', (err, req, res) => {
-              console.log('🚨 [VITE PROXY ERROR]:', err.message);
-              console.log('🚨 [VITE PROXY ERROR] Target:', `http://${host}:${serverPort}`);
-              console.log('🚨 [VITE PROXY ERROR] Request:', req.url);
+              if (process.env.VITE_DEBUG_PROXY === '1') console.log('🚨 [VITE PROXY ERROR]:', err.message);
+              if (process.env.VITE_DEBUG_PROXY === '1') console.log('🚨 [VITE PROXY ERROR] Target:', `http://${host}:${serverPort}`);
+              if (process.env.VITE_DEBUG_PROXY === '1') console.log('🚨 [VITE PROXY ERROR] Request:', req.url);
             });
             proxy.on('proxyReq', (proxyReq, req, res) => {
-              console.log('🔄 [VITE PROXY] Forwarding:', req.method, req.url, 'to', `http://${host}:${serverPort}${req.url}`);
+              if (process.env.VITE_DEBUG_PROXY === '1') console.log('🔄 [VITE PROXY] Forwarding:', req.method, req.url, 'to', `http://${host}:${serverPort}${req.url}`);
             });
           }
         },
