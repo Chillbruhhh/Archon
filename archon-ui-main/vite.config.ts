@@ -16,15 +16,15 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
   // For internal Docker communication, use the service name
   // For external access, use the HOST from environment
   const isDocker = process.env.DOCKER_ENV === 'true' || existsSync('/.dockerenv');
-  const internalHost = 'archon-server';  // Docker service name for internal communication
+  const internalHost = process.env.ARCHON_SERVER_INTERNAL_HOST || env.ARCHON_SERVER_INTERNAL_HOST || 'archon-server';  // Docker service name for internal communication
   // Explicit backend host to avoid accidentally using HOST=0.0.0.0
   const serverHost = process.env.ARCHON_SERVER_HOST || env.ARCHON_SERVER_HOST || 'localhost';
   const host = isDocker ? internalHost : serverHost;
   const serverPort = process.env.ARCHON_SERVER_PORT || env.ARCHON_SERVER_PORT || '8181';
 
-  // UI port configuration - use 5173 in Docker (mapped to 3737 externally),
+  // UI port configuration - use 3737 in Docker to match compose,
   // or ARCHON_UI_PORT for local development
-  const uiPort = isDocker ? 5173 : parseInt(process.env.ARCHON_UI_PORT || env.ARCHON_UI_PORT || '3737', 10);
+  const uiPort = isDocker ? 3737 : parseInt(process.env.ARCHON_UI_PORT || env.ARCHON_UI_PORT || '3737', 10);
   
   return {
     plugins: [
@@ -95,7 +95,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               const lines = data.toString().split('\n').filter((line: string) => line.trim());
               lines.forEach((line: string) => {
                 // Strip ANSI escape codes
-                const cleanLine = line.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+                const cleanLine = line.replace(/\u001B\[[0-9;?]*[ -/]*[@-~]/g, '');
                 res.write(`data: ${JSON.stringify({ type: 'output', message: cleanLine, timestamp: new Date().toISOString() })}\n\n`);
               });
             });
@@ -283,8 +283,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
     ],
     server: {
       host: '0.0.0.0', // Listen on all network interfaces with explicit IP
-      port: uiPort, // Use dynamic port based on environmet
-      port: parseInt(process.env.ARCHON_UI_PORT || env.ARCHON_UI_PORT || '3737'), // Use configurable port
+      port: uiPort, // Use dynamic port based on environment
       strictPort: true, // Exit if port is in use
       proxy: {
         '/api': {

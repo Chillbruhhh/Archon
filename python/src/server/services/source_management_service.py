@@ -214,7 +214,17 @@ Provide only the title, nothing else."""
                 else:
                     raise last_err
 
-            generated_title = response.choices[0].message.content.strip()
+            # Validate response and content
+            if not response or not getattr(response, "choices", None) or len(response.choices) == 0:
+                search_logger.error(f"Empty or invalid title response for {source_id}")
+                return title, {"knowledge_type": knowledge_type, "tags": tags or [], "source_type": ("file" if source_id.startswith("file_") else "url"), "auto_generated": True}
+
+            message_content = response.choices[0].message.content
+            if message_content is None:
+                search_logger.error(f"LLM returned None title content for {source_id}")
+                return title, {"knowledge_type": knowledge_type, "tags": tags or [], "source_type": ("file" if source_id.startswith("file_") else "url"), "auto_generated": True}
+
+            generated_title = message_content.strip()
             # Clean up the title
             generated_title = generated_title.strip("\"'")
             generated_title = " ".join(generated_title.splitlines())
@@ -286,7 +296,7 @@ async def update_source_info(
                 metadata["original_url"] = original_url
 
             # Update existing source (preserving title)
-            result = (
+            (
                 client.table("archon_sources")
                 .update({
                     "summary": summary,
@@ -500,7 +510,7 @@ class SourceManagementService:
                 return False, {"error": f"Source with ID {source_id} not found"}
 
         except Exception as e:
-            logger.error(f"Error updating source metadata: {e}")
+            logger.error(f"Error updating source metadata: {e}", exc_info=True)
             return False, {"error": f"Error updating source metadata: {str(e)}"}
 
     async def create_source_info(
@@ -558,7 +568,7 @@ class SourceManagementService:
             }
 
         except Exception as e:
-            logger.error(f"Error creating source info: {e}")
+            logger.error(f"Error creating source info: {e}", exc_info=True)
             return False, {"error": f"Error creating source info: {str(e)}"}
 
     def get_source_details(self, source_id: str) -> tuple[bool, dict[str, Any]]:
@@ -610,7 +620,7 @@ class SourceManagementService:
             }
 
         except Exception as e:
-            logger.error(f"Error getting source details: {e}")
+            logger.error(f"Error getting source details: {e}", exc_info=True)
             return False, {"error": f"Error getting source details: {str(e)}"}
 
     def list_sources_by_type(self, knowledge_type: str = None) -> tuple[bool, dict[str, Any]]:
@@ -653,5 +663,5 @@ class SourceManagementService:
             }
 
         except Exception as e:
-            logger.error(f"Error listing sources by type: {e}")
+            logger.error(f"Error listing sources by type: {e}", exc_info=True)
             return False, {"error": f"Error listing sources by type: {str(e)}"}

@@ -132,7 +132,10 @@ class DocumentStorageService(BaseStorageService):
                     provider_config = await credential_service.get_active_provider("llm")
                     active_provider = provider_config.get("provider", "openai")
                 except Exception as e:
-                    logger.warning(f"Failed to get active provider for file upload, falling back to OpenAI: {e}")
+                    logger.warning(
+                        f"Failed to get active provider for file upload, falling back to OpenAI: {e} | "
+                        f"filename={filename} | source_id={source_id}"
+                    )
                     active_provider = "openai"
 
                 # Get the active embedding provider for document embeddings
@@ -146,7 +149,7 @@ class DocumentStorageService(BaseStorageService):
 
                 source_summary = await extract_source_summary(
                     source_id,
-                    file_content[:5000],
+                    file_content[:3000],
                     500,
                     active_provider
                 )
