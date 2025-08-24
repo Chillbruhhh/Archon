@@ -484,7 +484,7 @@ def register_modules():
 
     # Import and register Knowledge Graph module - always available
     try:
-        from src.mcp.modules.knowledge_graph_module import register_knowledge_graph_tools
+        from src.mcp_server.modules.knowledge_graph_module import register_knowledge_graph_tools
 
         register_knowledge_graph_tools(mcp)
         modules_registered += 1
