@@ -7,7 +7,10 @@ Keeps the main projects_api.py file focused on REST endpoints.
 
 # Removed direct logging import - using unified config
 import asyncio
+import json
 import time
+from datetime import datetime
+from typing import Any, Dict
 
 from ..config.logfire_config import get_logger
 from ..services.background_task_manager import get_task_manager
@@ -24,6 +27,23 @@ logger.info(f"🔗 [SOCKETIO] Socket.IO instance ID: {id(sio)}")
 # Rate limiting for Socket.IO broadcasts
 _last_broadcast_times: dict[str, float] = {}
 _min_broadcast_interval = 0.1  # Minimum 100ms between broadcasts per room
+
+
+def serialize_datetime_for_json(data: Any) -> Any:
+    """
+    Recursively convert datetime objects to ISO format strings for JSON serialization.
+    This ensures Socket.IO emit calls don't fail with 'datetime is not JSON serializable' errors.
+    """
+    if isinstance(data, datetime):
+        return data.isoformat()
+    elif isinstance(data, dict):
+        return {key: serialize_datetime_for_json(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [serialize_datetime_for_json(item) for item in data]
+    elif isinstance(data, tuple):
+        return tuple(serialize_datetime_for_json(item) for item in data)
+    else:
+        return data
 
 
 # Broadcast helper functions
@@ -1080,3 +1100,195 @@ async def start_document_sync_cleanup():
 
 # Initialize cleanup task on module load
 logger.info("📄 [DOCUMENT SYNC] Document synchronization handlers initialized")
+
+
+# =============================================================================
+# KNOWLEDGE GRAPH SOCKET.IO HANDLERS
+# =============================================================================
+
+# Knowledge Graph parsing progress tracking
+@sio.event
+async def join_kg_parsing_room(sid, data):
+    """Join a Knowledge Graph parsing room for progress updates."""
+    try:
+        parsing_id = data.get("parsingId")
+        if not parsing_id:
+            logger.error(f"🧠 [KG PARSING] Client {sid} attempted to join room without parsingId")
+            return
+
+        await sio.enter_room(sid, parsing_id)
+        logger.info(f"🧠 [KG PARSING] Client {sid} joined parsing room {parsing_id}")
+
+        # Send acknowledgment
+        await sio.emit(
+            "kg_parsing:room_joined",
+            {
+                "parsingId": parsing_id,
+                "message": "Successfully joined Knowledge Graph parsing room",
+                "timestamp": time.time() * 1000,
+            },
+            room=sid,
+        )
+
+    except Exception as e:
+        logger.error(f"🧠 [KG PARSING] Error joining room: {e}")
+
+
+@sio.event
+async def leave_kg_parsing_room(sid, data):
+    """Leave a Knowledge Graph parsing room."""
+    try:
+        parsing_id = data.get("parsingId")
+        if not parsing_id:
+            logger.error(f"🧠 [KG PARSING] Client {sid} attempted to leave room without parsingId")
+            return
+
+        await sio.leave_room(sid, parsing_id)
+        logger.info(f"🧠 [KG PARSING] Client {sid} left parsing room {parsing_id}")
+
+    except Exception as e:
+        logger.error(f"🧠 [KG PARSING] Error leaving room: {e}")
+
+
+# Knowledge Graph parsing progress broadcast functions
+async def start_kg_parsing_progress(parsing_id: str, initial_data: dict):
+    """Start Knowledge Graph parsing progress tracking."""
+    try:
+        # Serialize any datetime objects to prevent JSON serialization errors
+        safe_initial_data = serialize_datetime_for_json(initial_data)
+        
+        emit_data = {
+            "parsingId": parsing_id,
+            "status": "starting",
+            "message": "Starting repository parsing...",
+            "timestamp": time.time() * 1000,
+            **safe_initial_data,
+        }
+        
+        await sio.emit("kg_parsing_start", emit_data, room=parsing_id)
+        logger.info(f"🧠 [KG PARSING] Started progress tracking | parsing_id={parsing_id}")
+
+    except Exception as e:
+        logger.error(f"🧠 [KG PARSING] Error starting progress: {e}")
+
+
+async def update_kg_parsing_progress(parsing_id: str, progress_data: dict):
+    """Update Knowledge Graph parsing progress."""
+    try:
+        # Add rate limiting to prevent spam
+        current_time = time.time() * 1000
+        last_time = _last_broadcast_times.get(f"kg_{parsing_id}", 0)
+        
+        if current_time - last_time < (_min_broadcast_interval * 1000):
+            return  # Skip this update due to rate limiting
+
+        _last_broadcast_times[f"kg_{parsing_id}"] = current_time
+
+        # Serialize any datetime objects to prevent JSON serialization errors
+        safe_progress_data = serialize_datetime_for_json(progress_data)
+        
+        emit_data = {
+            "parsingId": parsing_id,
+            "timestamp": current_time,
+            **safe_progress_data,
+        }
+
+        await sio.emit("kg_parsing_progress", emit_data, room=parsing_id)
+
+    except Exception as e:
+        logger.error(f"🧠 [KG PARSING] Error updating progress: {e}")
+
+
+async def complete_kg_parsing_progress(parsing_id: str, completion_data: dict):
+    """Complete Knowledge Graph parsing progress."""
+    try:
+        # Serialize any datetime objects to prevent JSON serialization errors
+        safe_completion_data = serialize_datetime_for_json(completion_data)
+        
+        emit_data = {
+            "parsingId": parsing_id,
+            "status": "completed",
+            "message": "Repository parsing completed successfully!",
+            "timestamp": time.time() * 1000,
+            **safe_completion_data,
+        }
+        
+        await sio.emit("kg_parsing_complete", emit_data, room=parsing_id)
+        logger.info(f"🧠 [KG PARSING] Completed progress tracking | parsing_id={parsing_id}")
+
+    except Exception as e:
+        logger.error(f"🧠 [KG PARSING] Error completing progress: {e}")
+
+
+async def error_kg_parsing_progress(parsing_id: str, error_message: str):
+    """Error Knowledge Graph parsing progress."""
+    try:
+        await sio.emit(
+            "kg_parsing_error",
+            {
+                "parsingId": parsing_id,
+                "status": "error",
+                "message": error_message,
+                "timestamp": time.time() * 1000,
+            },
+            room=parsing_id,
+        )
+        logger.error(f"🧠 [KG PARSING] Error in progress tracking | parsing_id={parsing_id} | error={error_message}")
+
+    except Exception as e:
+        logger.error(f"🧠 [KG PARSING] Error broadcasting error: {e}")
+
+
+async def cancel_kg_parsing_progress(parsing_id: str):
+    """Cancel Knowledge Graph parsing progress."""
+    try:
+        await sio.emit(
+            "kg_parsing_cancelled",
+            {
+                "parsingId": parsing_id,
+                "status": "cancelled",
+                "message": "Parsing cancelled by user",
+                "timestamp": time.time() * 1000,
+            },
+            room=parsing_id,
+        )
+        logger.info(f"🧠 [KG PARSING] Cancelled progress tracking | parsing_id={parsing_id}")
+
+    except Exception as e:
+        logger.error(f"🧠 [KG PARSING] Error cancelling progress: {e}")
+
+
+# Knowledge Graph parsing subscription handlers
+@sio.event
+async def kg_parsing_subscribe(sid, data=None):
+    """Subscribe to Knowledge Graph parsing progress updates."""
+    logger.info(f"🧠 [SOCKETIO] Received kg_parsing_subscribe from {sid} with data: {data}")
+    parsing_id = data.get("parsing_id") if data else None
+    if not parsing_id:
+        logger.error(f"❌ [SOCKETIO] No parsing_id in kg_parsing_subscribe from {sid}")
+        await sio.emit("error", {"message": "parsing_id required"}, to=sid)
+        return
+
+    # Enter the room
+    await sio.enter_room(sid, parsing_id)
+    logger.info(f"✅ [SOCKETIO] Client {sid} subscribed to KG parsing room: {parsing_id}")
+
+    # Send acknowledgment
+    ack_data = {"parsing_id": parsing_id, "status": "subscribed"}
+    await sio.emit("kg_parsing_subscribe_ack", ack_data, to=sid)
+    logger.info(f"📤 [SOCKETIO] Sent KG parsing subscription acknowledgment to {sid} for {parsing_id}")
+
+
+@sio.event
+async def kg_parsing_unsubscribe(sid, data):
+    """Unsubscribe from Knowledge Graph parsing progress updates."""
+    parsing_id = data.get("parsing_id")
+    if parsing_id:
+        logger.info(f"📤 [SOCKETIO] kg_parsing_unsubscribe event received | sid={sid} | parsing_id={parsing_id}")
+        await sio.leave_room(sid, parsing_id)
+        logger.info(f"✅ [SOCKETIO] Client {sid} unsubscribed from KG parsing {parsing_id}")
+    else:
+        logger.error(f"❌ [SOCKETIO] No parsing_id in kg_parsing_unsubscribe from {sid}")
+
+
+logger.info("🧠 [KG PARSING] Knowledge Graph Socket.IO handlers initialized")

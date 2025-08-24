@@ -10,7 +10,7 @@ RUN apk add --no-cache python3 make g++ git curl
 COPY package*.json ./
 
 # Install dependencies including dev dependencies for testing
-RUN npm ci
+RUN npm install
 
 # Create coverage directory with proper permissions
 RUN mkdir -p /app/coverage && chmod 777 /app/coverage

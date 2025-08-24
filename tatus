@@ -1,0 +1,31 @@
+* [32mfeature/openrouter-support[m
+  main[m
+  [31mremotes/origin/HEAD[m -> origin/main
+  [31mremotes/origin/add-claude-github-actions-1755267697506[m
+  [31mremotes/origin/feature/openrouter-support[m
+  [31mremotes/origin/fix/(llms.txt)-not-crawling-links-inside-of-file[m
+  [31mremotes/origin/fix/archon_crawled_pages_url_chunk_number_key-(409)-error[m
+  [31mremotes/origin/fix/consolidate-concurrency-settings[m
+  [31mremotes/origin/fix/filter-binary-files-from-crawl[m
+  [31mremotes/origin/fix/respect-log-level-env-var[m
+  [31mremotes/origin/main[m
+  [31mremotes/origin/release-v3-mcp-support[m
+  [31mremotes/origin/release-v4-streamlit-ui-overhaul[m
+  [31mremotes/origin/release-v5-parallel-specialized-agents[m
+  [31mremotes/upstream/HEAD[m -> upstream/main
+  [31mremotes/upstream/add-claude-github-actions-1755267697506[m
+  [31mremotes/upstream/bugfix-issue-362[m
+  [31mremotes/upstream/dependabot/npm_and_yarn/docs/mermaid-11.10.0[m
+  [31mremotes/upstream/dependabot/npm_and_yarn/docs/mermaid-11.10.1[m
+  [31mremotes/upstream/feature/auto-discover-llms-sitemap[m
+  [31mremotes/upstream/feature/mcp-server-consolidation-simplification[m
+  [31mremotes/upstream/fix-default-docker-profile[m
+  [31mremotes/upstream/fix/bug-report-submission[m
+  [31mremotes/upstream/fix/crawler-js-doc-sites[m
+  [31mremotes/upstream/fix/logging-error-extra-params[m
+  [31mremotes/upstream/fix/supabase-key-validation-and-state-consolidation[m
+  [31mremotes/upstream/fix/threading-service-logging[m
+  [31mremotes/upstream/main[m
+  [31mremotes/upstream/release-v3-mcp-support[m
+  [31mremotes/upstream/release-v4-streamlit-ui-overhaul[m
+  [31mremotes/upstream/release-v5-parallel-specialized-agents[m

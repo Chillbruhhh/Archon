@@ -332,6 +332,19 @@ def register_modules():
     else:
         logger.info("⚠ Project module skipped - Projects are disabled")
 
+    # Import and register Knowledge Graph module - always available
+    try:
+        from src.mcp.modules.knowledge_graph_module import register_knowledge_graph_tools
+
+        register_knowledge_graph_tools(mcp)
+        modules_registered += 1
+        logger.info("✓ Knowledge Graph module registered (HTTP-based)")
+    except ImportError as e:
+        logger.warning(f"⚠ Knowledge Graph module not available: {e}")
+    except Exception as e:
+        logger.error(f"✗ Error registering Knowledge Graph module: {e}")
+        logger.error(traceback.format_exc())
+
     logger.info(f"📦 Total modules registered: {modules_registered}")
 
     if modules_registered == 0:

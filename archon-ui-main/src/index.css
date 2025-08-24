@@ -198,6 +198,103 @@
   transition: height 0.5s ease-in-out;
 }
 
+/* Knowledge Graph Archon Styling */
+.border-glow {
+  box-shadow: 
+    0 0 20px rgba(34, 211, 238, 0.4),
+    inset 0 0 20px rgba(34, 211, 238, 0.1);
+}
+
+.border-glow:hover {
+  box-shadow: 
+    0 0 30px rgba(34, 211, 238, 0.6),
+    inset 0 0 30px rgba(34, 211, 238, 0.15);
+}
+
+/* Shimmer animation for skeleton loaders */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* D3 Knowledge Graph Styling */
+.knowledge-graph-d3 {
+  width: 100% !important;
+  height: 100% !important;
+  background: transparent;
+}
+
+.knowledge-graph-d3 .graph-container {
+  width: 100%;
+  height: 100%;
+}
+
+/* Neo4j-style node animations */
+@keyframes nodeGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 5px currentColor);
+  }
+  50% {
+    filter: drop-shadow(0 0 15px currentColor);
+  }
+}
+
+.node-circle {
+  transition: all 0.3s ease;
+}
+
+.node-circle:hover {
+  animation: nodeGlow 2s infinite;
+}
+
+/* Relationship edge styling */
+.edges line {
+  transition: all 0.3s ease;
+}
+
+.edges line:hover {
+  stroke-opacity: 1 !important;
+  stroke-width: 4px !important;
+}
+
+/* Edge labels styling */
+.edge-labels {
+  transition: opacity 0.3s ease;
+}
+
+.edge-label-group {
+  transition: all 0.2s ease;
+}
+
+.edge-label-bg {
+  transition: all 0.2s ease;
+  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.5));
+}
+
+.edge-label-text {
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+  user-select: none;
+}
+
+/* Animated flow effect for hierarchy edges */
+@keyframes edgeFlow {
+  0% {
+    stroke-dashoffset: 12;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.edges line[data-type="contains"] {
+  stroke-dasharray: 8, 4;
+  animation: edgeFlow 2s linear infinite;
+}
+
 /* Ensure scrollable content in expanded cards */
 .card-expanded .flex-1.overflow-hidden > .absolute {
   /* Removed max-height to allow full scrolling */

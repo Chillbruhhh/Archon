@@ -19,7 +19,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install runtime dependencies for Playwright (minimal set)
+# Install runtime dependencies for Playwright and git for repository cloning
 RUN apt-get update && apt-get install -y \
     wget \
     ca-certificates \
@@ -42,6 +42,7 @@ RUN apt-get update && apt-get install -y \
     libxkbcommon0 \
     libxrandr2 \
     xdg-utils \
+    git \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
