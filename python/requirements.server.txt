@@ -17,10 +17,10 @@ asyncpg>=0.29.0
 
 # AI/ML libraries (ALL ML models belong here) - using smaller versions to reduce build time
 openai==1.71.0
-# Using smaller/lighter ML libraries to avoid CUDA downloads and NumPy conflicts
+# # Using smaller/lighter ML libraries to avoid CUDA downloads and NumPy conflicts
 torch==2.1.0  # Smaller stable version
 sentence-transformers>=4.1.0  # For reranking and advanced embeddings  
-transformers>=4.30.0  # Required by sentence-transformers
+# # transformers>=4.30.0  # Required by sentence-transformers
 numpy<2.0.0  # Pin NumPy to avoid ML library compatibility issues
 
 # Document processing

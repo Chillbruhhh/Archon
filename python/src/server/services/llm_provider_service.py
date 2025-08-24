@@ -91,6 +91,15 @@ async def get_llm_client(provider: str | None = None, use_embedding_provider: bo
             api_key = provider_config["api_key"]
             base_url = provider_config["base_url"]
 
+        # Validate provider name
+        allowed_providers = {"openai", "ollama", "google", "openrouter"}
+        if provider_name not in allowed_providers:
+            raise ValueError(f"Unsupported provider: {provider_name}. Allowed: {allowed_providers}")
+        
+        # Validate API key format for security
+        if api_key and len(api_key.strip()) == 0:
+            api_key = None  # Treat empty strings as None
+        
         logger.info(f"Creating LLM client for provider: {provider_name}")
 
         if provider_name == "openai":
@@ -175,9 +184,15 @@ async def get_embedding_model(provider: str | None = None) -> str:
             provider_name = provider_config["provider"]
             custom_model = provider_config["embedding_model"]
 
+        # Validate provider name  
+        allowed_providers = {"openai", "ollama", "google", "openrouter"}
+        if provider_name not in allowed_providers:
+            logger.warning(f"Unknown embedding provider: {provider_name}, falling back to OpenAI")
+            provider_name = "openai"
+        
         # Use custom model if specified
-        if custom_model:
-            return custom_model
+        if custom_model and len(custom_model.strip()) > 0:
+            return custom_model.strip()
 
         # Return provider-specific defaults
         if provider_name == "openai":
@@ -187,7 +202,7 @@ async def get_embedding_model(provider: str | None = None) -> str:
             return "nomic-embed-text"
         elif provider_name == "google":
             # Google's embedding model
-            return "text-embedding-004"
+            return "gemini-embedding-001"
         elif provider_name == "openrouter":
             # OpenRouter supports OpenAI embedding models
             return "text-embedding-3-small"

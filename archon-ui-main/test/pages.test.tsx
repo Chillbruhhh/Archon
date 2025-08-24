@@ -63,7 +63,7 @@ describe('Onboarding Detection Tests', () => {
       { key: 'LLM_PROVIDER', value: 'openai', category: 'rag_strategy' }
     ]
     const apiKeyCreds: NormalizedCredential[] = [
-      { key: 'OPENAI_API_KEY', value: 'sk-test123', category: 'api_keys' }
+      { key: 'OPENAI_API_KEY', value: 'sk-or-test123', category: 'api_keys' }
     ]
     
     expect(isLmConfigured(ragCreds, apiKeyCreds)).toBe(true)
@@ -101,7 +101,7 @@ describe('Onboarding Detection Tests', () => {
   test('isLmConfigured returns true when no provider but OPENAI_API_KEY exists', () => {
     const ragCreds: NormalizedCredential[] = []
     const apiKeyCreds: NormalizedCredential[] = [
-      { key: 'OPENAI_API_KEY', value: 'sk-test123', category: 'api_keys' }
+      { key: 'OPENAI_API_KEY', value: 'sk-or-test123', category: 'api_keys' }
     ]
     
     expect(isLmConfigured(ragCreds, apiKeyCreds)).toBe(true)
