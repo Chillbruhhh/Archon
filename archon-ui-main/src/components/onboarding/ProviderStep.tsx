@@ -3,7 +3,7 @@ import { Key, ExternalLink, Save, Loader } from "lucide-react";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 import { Select } from "../ui/Select";
-import { useToast } from "../../contexts/ToastContext";
+import { useToast } from "../../features/ui/hooks/useToast";
 import { credentialsService } from "../../services/credentialsService";
 
 interface ProviderStepProps {
@@ -46,7 +46,6 @@ export const ProviderStep = ({ onSaved, onSkip }: ProviderStepProps) => {
       localStorage.setItem("onboardingDismissed", "true");
       onSaved();
     } catch (error) {
-      // Log error for debugging per alpha principles
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
       console.error("Failed to save API key:", error);

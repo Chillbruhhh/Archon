@@ -12,7 +12,7 @@ import {
   Bug,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useToast } from "../contexts/ToastContext";
+import { useToast } from "../features/ui/hooks/useToast";
 import { useSettings } from "../contexts/SettingsContext";
 import { useStaggeredEntrance } from "../hooks/useStaggeredEntrance";
 import { FeaturesSection } from "../components/settings/FeaturesSection";
@@ -204,8 +204,7 @@ export const SettingsPage = () => {
             >
               <div className="space-y-4">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Found a bug or issue? Report it to help improve Archon V2
-                  Alpha.
+                  Found a bug or issue? Report it to help improve Archon Beta.
                 </p>
                 <div className="flex justify-start">
                   <BugReportButton variant="secondary" size="md">

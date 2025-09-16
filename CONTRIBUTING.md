@@ -101,8 +101,9 @@ very important specifics to call out here.
 
 **4. Even within individual features, aim for simplicity** - concise implementations are always the best!
 
-**5. If your code changes touch the crawling functionality in any way**, please test crawling an llms.txt, a sitemap.xml, and a normal URL with recursive crawling. Here are smaller examples you can use for testing:
-   - llms.txt: https://docs.mem0.ai/llms-full.txt
+**5. If your code changes touch the crawling functionality in any way**, please test crawling an llms-full.txt, llms.txt, a sitemap.xml, and a normal URL with recursive crawling. Here are smaller examples you can use for testing:
+   - llms.txt: https://docs.mem0.ai/llms.txt
+   - llms-full.txt: https://docs.mem0.ai/llms-full.txt
    - sitemap.xml: https://mem0.ai/sitemap.xml
    - Normal URL: https://docs.anthropic.com/en/docs/claude-code/overview
 
@@ -148,13 +149,15 @@ Test these things using both the UI and the MCP server. This process will be sim
    - This creates your own copy of the repository
 
    ```bash
-   # Clone your fork (replace 'your-username' with your GitHub username)
+   # Clone your fork from main branch for contributing (replace 'your-username' with your GitHub username)
    git clone https://github.com/your-username/archon.git
    cd archon
 
    # Add upstream remote to sync with main repository later
    git remote add upstream https://github.com/coleam00/archon.git
    ```
+
+   **Note:** The `main` branch is used for contributions and contains the latest development work. The `stable` branch is for users who want a more tested, stable version of Archon.
 
 2. **🤖 AI Coding Assistant Setup**
 
@@ -168,7 +171,7 @@ Test these things using both the UI and the MCP server. This process will be sim
 
 3. **Create Feature Branch**
 
-   **Best Practice**: Always create a feature branch rather than working directly on main. This keeps your main branch clean and makes it easier to sync with the upstream repository.
+   **Best Practice**: Always create a feature branch from main rather than working directly on it. This keeps your main branch clean and makes it easier to sync with the upstream repository.
 
    ```bash
    git checkout -b feature/your-feature-name

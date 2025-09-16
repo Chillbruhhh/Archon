@@ -144,7 +144,8 @@ class TaskService:
         status: str = None,
         include_closed: bool = False,
         exclude_large_fields: bool = False,
-        include_archived: bool = False
+        include_archived: bool = False,
+        search_query: str = None
     ) -> tuple[bool, dict[str, Any]]:
         """
         List tasks with various filters.
@@ -155,6 +156,7 @@ class TaskService:
             include_closed: Include done tasks
             exclude_large_fields: If True, excludes sources and code_examples fields
             include_archived: If True, includes archived tasks
+            search_query: Keyword search in title, description, and feature fields
 
         Returns:
             Tuple of (success, result_dict)
@@ -193,6 +195,33 @@ class TaskService:
                 # Only exclude done tasks if no specific status filter is applied
                 query = query.neq("status", "done")
                 filters_applied.append("exclude done tasks")
+
+            # Apply keyword search if provided
+            if search_query:
+                # Split search query into terms
+                search_terms = search_query.lower().split()
+                
+                # Build the filter expression for AND-of-ORs
+                # Each term must match in at least one field (OR), and all terms must match (AND)
+                if len(search_terms) == 1:
+                    # Single term: simple OR across fields
+                    term = search_terms[0]
+                    query = query.or_(
+                        f"title.ilike.%{term}%,"
+                        f"description.ilike.%{term}%,"
+                        f"feature.ilike.%{term}%"
+                    )
+                else:
+                    # Multiple terms: use text search for proper AND logic
+                    # Note: This requires full-text search columns to be set up in the database
+                    # For now, we'll search for the full phrase in any field
+                    full_query = search_query.lower()
+                    query = query.or_(
+                        f"title.ilike.%{full_query}%,"
+                        f"description.ilike.%{full_query}%,"
+                        f"feature.ilike.%{full_query}%"
+                    )
+                filters_applied.append(f"search={search_query}")
 
             # Filter out archived tasks only if not including them
             if not include_archived:
@@ -420,11 +449,10 @@ class TaskService:
         Get task counts for all projects in a single optimized query.
         
         Returns task counts grouped by project_id and status.
-        Includes review status in "doing" count to match frontend logic.
         
         Returns:
             Tuple of (success, counts_dict) where counts_dict is:
-            {"project-id": {"todo": 5, "doing": 2, "done": 10}}
+            {"project-id": {"todo": 5, "doing": 2, "review": 3, "done": 10}}
         """
         try:
             logger.debug("Fetching task counts for all projects in batch")
@@ -456,13 +484,12 @@ class TaskService:
                     counts_by_project[project_id] = {
                         "todo": 0,
                         "doing": 0,
+                        "review": 0,
                         "done": 0
                     }
 
-                # Map review to doing to match frontend logic
-                if status == "review":
-                    counts_by_project[project_id]["doing"] += 1
-                elif status in ["todo", "doing", "done"]:
+                # Count all statuses separately
+                if status in ["todo", "doing", "review", "done"]:
                     counts_by_project[project_id][status] += 1
 
             logger.debug(f"Task counts fetched for {len(counts_by_project)} projects")
