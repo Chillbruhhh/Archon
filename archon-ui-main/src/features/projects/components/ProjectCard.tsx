@@ -28,7 +28,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   onDelete,
 }) => {
   return (
-    <motion.li
+    <motion.div
       tabIndex={0}
       aria-label={`Select project ${project.title}`}
       aria-current={isSelected ? "true" : undefined}
@@ -258,10 +258,16 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
           projectId={project.id}
           projectTitle={project.title}
           isPinned={project.pinned}
-          onPin={(e) => onPin(e, project.id)}
-          onDelete={(e) => onDelete(e, project.id, project.title)}
+          onPin={(e) => {
+            e.stopPropagation();
+            onPin(e, project.id);
+          }}
+          onDelete={(e) => {
+            e.stopPropagation();
+            onDelete(e, project.id, project.title);
+          }}
         />
       </div>
-    </motion.li>
+    </motion.div>
   );
 };

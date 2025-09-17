@@ -3,7 +3,8 @@
  * Handles all knowledge-related API operations using TanStack Query patterns
  */
 
-import { callAPIWithETag, invalidateETagCache } from "../../projects/shared/apiWithEtag";
+import { callAPIWithETag } from "../../shared/apiWithEtag";
+import { APIServiceError } from "../../shared/errors";
 import type {
   ChunksResponse,
   CodeExamplesResponse,
@@ -58,11 +59,6 @@ export const knowledgeService = {
       method: "DELETE",
     });
 
-    // Invalidate cache after deletion
-    invalidateETagCache("/api/knowledge-items");
-    invalidateETagCache("/api/knowledge-items/summary");
-    invalidateETagCache(`/api/knowledge-items/${sourceId}`);
-
     return response;
   },
 
@@ -74,11 +70,6 @@ export const knowledgeService = {
       method: "PUT",
       body: JSON.stringify(updates),
     });
-
-    // Invalidate both list and specific item cache
-    invalidateETagCache("/api/knowledge-items");
-    invalidateETagCache("/api/knowledge-items/summary");
-    invalidateETagCache(`/api/knowledge-items/${sourceId}`);
 
     return response;
   },
@@ -92,10 +83,6 @@ export const knowledgeService = {
       body: JSON.stringify(request),
     });
 
-    // Invalidate list cache as new item will be added
-    invalidateETagCache("/api/knowledge-items");
-    invalidateETagCache("/api/knowledge-items/summary");
-
     return response;
   },
 
@@ -106,11 +93,6 @@ export const knowledgeService = {
     const response = await callAPIWithETag<RefreshResponse>(`/api/knowledge-items/${sourceId}/refresh`, {
       method: "POST",
     });
-
-    // Invalidate caches
-    invalidateETagCache("/api/knowledge-items");
-    invalidateETagCache("/api/knowledge-items/summary");
-    invalidateETagCache(`/api/knowledge-items/${sourceId}`);
 
     return response;
   },
@@ -148,13 +130,9 @@ export const knowledgeService = {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || `HTTP ${response.status}`);
+      const err = await response.json().catch(() => ({}));
+      throw new APIServiceError(err.error || `HTTP ${response.status}`, "HTTP_ERROR", response.status);
     }
-
-    // Invalidate list cache
-    invalidateETagCache("/api/knowledge-items");
-    invalidateETagCache("/api/knowledge-items/summary");
 
     return response.json();
   },
@@ -224,7 +202,7 @@ export const knowledgeService = {
    * Search the knowledge base
    */
   async searchKnowledgeBase(options: SearchOptions): Promise<SearchResultsResponse> {
-    return callAPIWithETag("/api/knowledge-items/search", {
+    return callAPIWithETag<SearchResultsResponse>("/api/knowledge-items/search", {
       method: "POST",
       body: JSON.stringify(options),
     });
