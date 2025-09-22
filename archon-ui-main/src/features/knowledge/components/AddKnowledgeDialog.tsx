@@ -9,7 +9,7 @@ import { useToast } from "../../ui/hooks/useToast";
 import { Button, Input, Label } from "../../ui/primitives";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../ui/primitives/dialog";
 import { cn } from "../../ui/primitives/styles";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/primitives/tabs";
+import { Tabs, TabsContent } from "../../ui/primitives/tabs";
 import { useCrawlUrl, useUploadDocument } from "../hooks";
 import type { CrawlRequest, UploadMetadata } from "../types";
 import { KnowledgeTypeSelector } from "./KnowledgeTypeSelector";
@@ -260,7 +260,7 @@ export const AddKnowledgeDialog: React.FC<AddKnowledgeDialogProps> = ({
                 <input
                   id={fileId}
                   type="file"
-                  accept=".txt,.md,.pdf,.doc,.docx"
+                  accept=".txt,.md,.pdf,.doc,.docx,.html,.htm"
                   onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                   disabled={isProcessing}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10"
